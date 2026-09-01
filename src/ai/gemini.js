@@ -114,8 +114,8 @@ export async function getFastestModel(apiKey) {
         return flashModels[0];
       }
     }
-  } catch (err) {
-    console.warn('[Gemini] Flash model detection failed, using fallback:', err);
+  } catch {
+    console.warn('[Gemini] Flash model detection failed, using safe fallback');
   }
 
   // Safe universal fallback
@@ -222,8 +222,13 @@ export async function generateGeminiReply(userText, recentMessages = []) {
 
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
-    const message = errData.error?.message || `Gemini API error (${response.status})`;
-    throw new Error(message);
+    let rawMsg = errData.error?.message || `Gemini API error (${response.status})`;
+    // Leak-proof scrubbing: ensure no API key can ever appear in an error message
+    if (apiKey) {
+      rawMsg = rawMsg.replaceAll(apiKey, '[REDACTED]');
+    }
+    rawMsg = rawMsg.replace(/key=[a-zA-Z0-9_\-]+/gi, 'key=[REDACTED]');
+    throw new Error(rawMsg);
   }
 
   const data = await response.json();

@@ -14,12 +14,13 @@ An interactive AI Assistant web application featuring a real-time animated avata
   - ⚡ **Surprise** — Thinking / shocked reaction
   - ❓ **Confused** — Curious / query state
   - 😠 **Angry** — Alert / frustration state
-- **High-Token Flash AI Architecture** — Strictly routes inference through Google's latest **Flash series** models (`gemini-2.0-flash-lite`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`). Delivers sub-second latency, 800 output tokens, and maximizes token capacity (up to 4M TPM free-tier throughput and 1M+ context window) while dynamically displaying the active version in the header badge.
+- **High-Token Flash AI Architecture** — Strictly routes inference through Google's latest **Flash series** models (`gemini-3.5-flash-lite`, `gemini-2.0-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`). Delivers sub-second latency, 800 output tokens, and maximizes token capacity (up to 4M TPM free-tier throughput and 1M+ context window) while dynamically displaying the active version in the header badge.
 - **Bring-Your-Own-Key (BYOK) Security** — Dedicated in-app connect screen. Users enter their free Google Gemini API key, stored exclusively in their own browser's `localStorage`. Keys are never sent to your backend or stored in Firestore.
+- **Automatic Key Purge on Sign-Out** — Signing out completely wipes the stored Gemini API key from browser `localStorage`, ensuring shared or public devices remain fully secure.
 - **AI-Driven Emotion Synchronization** — Assistant generates emotional tags (`[SMILE]`, `[SURPRISE]`, `[CONFUSED]`, `[ANGRY]`) to dynamically animate the Rive avatar's face in real-time as she speaks.
 - **Google Authentication** — Secure Google Sign-In with session persistence and user profile display (`AuthGate` & `AuthContext`).
 - **Real-Time Chat with Firestore** — Messages are synced in real-time to Cloud Firestore under private per-user collections (`users/{userId}/messages`).
-- **Fixed-Height Scrollable Chatbox** — Fixed viewport bounds with smooth auto-scrolling; chat never stretches or extends downwards.
+- **Fixed-Height Scrollable Chatbox** — Fixed viewport bounds with smooth auto-scrolling and clean compact input (`Enter your thoughts…`). Chat never stretches or extends downwards.
 - **Automated CI/CD** — Zero-downtime deployment to GitHub Pages via GitHub Actions upon pushing to `main`.
 - **State Machine Driven** — Clean state transitions via Rive state machine inputs with hover overrides and viewport clipping.
 
@@ -139,6 +140,7 @@ Open your browser at `http://localhost:5173/`.
 
 * **Firestore Privacy**: User messages are partitioned under `users/{userId}/messages` with Firestore rules ensuring each user can only read and write their own data.
 * **API Key Safety (BYOK)**: User Gemini API keys are saved strictly in the visitor's local browser storage (`localStorage`). Keys are sent directly from the browser to Google's HTTPS API endpoint and are never stored in Firestore or transmitted to any third party.
+* **Automatic Key Purge on Logout**: For maximum user safety, signing out immediately deletes the stored Gemini API key from `localStorage`. Users can also clear or update their key at any time while logged in by clicking the **`🔑` button** in the chat header.
 
 ---
 
