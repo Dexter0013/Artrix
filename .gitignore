@@ -34,3 +34,7 @@ pnpm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Firebase local rules
+firestore.rules
+*.rules

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useRive, useStateMachineInput, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 import AssistantStage from './components/AssistantStage.jsx';
 import MoodController from './components/MoodController.jsx';
+import ChatPanel from './components/ChatPanel.jsx';
 
-const RIV_PATH = '/20673-38905-deer-girl.riv';
+const RIV_PATH = `${import.meta.env.BASE_URL}20673-38905-deer-girl.riv`.replace(/\/+/g, '/');
 const SM_NAME = 'Main';
 
 export default function App() {
@@ -73,15 +74,21 @@ export default function App() {
       </header>
 
       <main style={styles.layout}>
-        <AssistantStage
-          RiveComponent={RiveComponent}
-          currentMood={currentMood}
-          onReset={resetToIdle}
-        />
-        <MoodController
-          onTriggerMood={handleTriggerMood}
-          activeState={currentMood}
-        />
+        <div style={styles.avatarColumn}>
+          <AssistantStage
+            RiveComponent={RiveComponent}
+            currentMood={currentMood}
+            onReset={resetToIdle}
+          />
+          <MoodController
+            onTriggerMood={handleTriggerMood}
+            activeState={currentMood}
+          />
+        </div>
+
+        <div style={styles.chatColumn}>
+          <ChatPanel onMoodDetected={handleTriggerMood} />
+        </div>
       </main>
     </div>
   );
@@ -93,33 +100,40 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '32px 20px 80px',
+    padding: '24px 20px 60px',
   },
   header: {
     textAlign: 'center',
     maxWidth: '600px',
-    marginBottom: '28px',
+    marginBottom: '20px',
   },
   mainTitle: {
     fontSize: '24px',
     fontWeight: '700',
     letterSpacing: '-0.5px',
     color: 'var(--text)',
-    marginBottom: '6px',
-  },
-  subtitle: {
-    color: 'var(--text-dim)',
-    fontSize: '14px',
-    lineHeight: '1.5',
     margin: 0,
   },
   layout: {
     display: 'flex',
     gap: '24px',
     width: '100%',
-    maxWidth: '890px',
+    maxWidth: '920px',
     flexWrap: 'wrap',
     justifyContent: 'center',
     alignItems: 'flex-start',
+  },
+  avatarColumn: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    width: '100%',
+    maxWidth: '430px',
+    flex: '1 1 360px',
+  },
+  chatColumn: {
+    width: '100%',
+    maxWidth: '430px',
+    flex: '1 1 360px',
   },
 };
