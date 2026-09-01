@@ -1,6 +1,8 @@
-# 🦌 Artrix
+# 🦌 Artrix — AI Assistant
 
 An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, paired with a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
+
+🔗 **Live Demo:** [https://dexter0013.github.io/Artrix/](https://dexter0013.github.io/Artrix/)
 
 ---
 
@@ -32,7 +34,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
 ## 📁 Project Structure
 
 ```
-AI-Assisant/
+Artrix/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml           # GitHub Actions workflow for Pages deployment
@@ -57,7 +59,7 @@ AI-Assisant/
 ├── .gitignore                   # Ignores sensitive credentials (.env.local), rules & cache
 ├── firestore.rules              # Recommended Firestore security rules (per-user privacy)
 ├── package.json
-└── vite.config.js               # Dynamic base path for local dev and GitHub Pages
+└── vite.config.js               # Relative base configuration for universal deployment
 ```
 
 ---
@@ -88,8 +90,8 @@ The rig binds to the `Main` state machine on the Deer-Girl artboard:
 Clone the repository and install dependencies:
 
 ```bash
-git clone https://github.com/Dexter0013/AI-Assisant.git
-cd AI-Assisant
+git clone https://github.com/Dexter0013/Artrix.git
+cd Artrix
 npm install
 ```
 
@@ -144,7 +146,7 @@ service cloud.firestore {
 
 ## 🌐 Deploying to GitHub Pages
 
-The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys the application.
+The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml`) that automatically builds and deploys the application on push to `main`.
 
 1. **Add Repository Secrets**:
    * Navigate to **Settings** > **Secrets and variables** > **Actions** on GitHub.
@@ -161,10 +163,14 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
    * Set **Source** to **GitHub Actions**.
 
 3. **Authorize Domain in Firebase**:
-   * In Firebase Console > **Authentication** > **Settings** > **Authorized domains**, add your GitHub Pages domain (e.g., `Dexter0013.github.io`).
+   * In Firebase Console > **Authentication** > **Settings** > **Authorized domains**, add your GitHub Pages domain (e.g., `dexter0013.github.io`).
 
 4. **Deploy**:
-   * Push your changes to the `main` branch. GitHub Actions will handle building the production bundle and publishing it live.
+   * Push your changes to the `main` branch. GitHub Actions will build and publish your app live at `https://dexter0013.github.io/Artrix/`.
+
+### Custom Domain Support
+
+Because the application uses relative asset paths (`base: './'`), you can attach any custom domain (e.g., `artrix.ai` or `app.yourdomain.com`) in your **GitHub Repository** ➔ **Settings** ➔ **Pages** ➔ **Custom domain** with free automated SSL.
 
 ---
 
