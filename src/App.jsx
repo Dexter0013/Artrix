@@ -4,6 +4,7 @@ import AssistantStage from './components/AssistantStage.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 
 const RIV_PATH = `${import.meta.env.BASE_URL || './'}20673-38905-deer-girl.riv`;
+const BG_PATH  = `${import.meta.env.BASE_URL || './'}backgroundnature.gif`;
 const SM_NAME = 'Main';
 
 export default function App() {
@@ -88,7 +89,14 @@ export default function App() {
   }, [cancelIdleRevert, resetToIdle, inputNormal, scheduleIdleRevert]);
 
   return (
-    <div style={styles.page}>
+    <div style={{
+      ...styles.page,
+      backgroundImage: `url('${BG_PATH}')`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+      backgroundRepeat: 'no-repeat',
+    }}>
       <header style={styles.header}>
         <h1 style={styles.mainTitle}>Artrix</h1>
       </header>
