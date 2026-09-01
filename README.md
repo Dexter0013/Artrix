@@ -50,13 +50,13 @@ Artrix/
 │   └── 20673-38905-deer-girl.riv# Rive animation binary rig
 ├── src/
 │   ├── ai/
-│   │   ├── gemini.js            # Gemini API client with auto-discovery & highest-quota model selection
-│   │   ├── tts.js               # Kokoro TTS client (client-side neural voice, voice af_heart)
+│   │   ├── gemini.js            # Gemini API client with 20-turn memory context & frontier model fallback
+│   │   ├── tts.js               # Natural voice engine with speakSegments() synchronized speech queue
 │   │   └── useAI.js             # React hook for conversation state, key storage & active model version
 │   ├── components/
 │   │   ├── AssistantStage.jsx   # Avatar viewport, canvas wrapper & aura glow
 │   │   ├── AuthGate.jsx         # Google Sign-in screen & loading spinner
-│   │   ├── ChatPanel.jsx        # Real-time Firestore chat UI, key connect card & active version badge
+│   │   ├── ChatPanel.jsx        # Real-time Firestore chat UI, multi-expression parser & active badge
 │   │   └── MoodController.jsx   # 5 manual expression trigger buttons
 │   ├── context/
 │   │   └── AuthContext.jsx      # Global React Context for Firebase Auth state
@@ -88,6 +88,40 @@ The rig binds to the `Main` state machine on the Deer-Girl artboard:
 | `trigger_surprise`| Trigger | Fires the surprise / thinking animation sequence |
 | `trigger_confusion`| Trigger | Fires the confused / question animation sequence |
 | `trigger_angry` | Trigger | Fires the alert / angry animation sequence |
+
+---
+
+## 🧠 AI Context & Multi-Expression Architecture
+
+### 1. System Instruction Context (`src/ai/gemini.js`, Lines 5–21)
+The AI persona and behavioral context are strictly defined in `SYSTEM_INSTRUCTION`:
+* **Character Profile**: Artrix, a friendly, witty, and charming AI assistant deer girl with an animated avatar.
+* **Brevity Rule**: Concisely answers in 1 to 3 conversational sentences.
+* **Emotion Tags**: Guided to use `[IDLE]`, `[SMILE]` / `[HAPPY]`, `[SURPRISE]`, `[CONFUSED]`, and `[ANGRY]` across sentences to orchestrate authentic, humane emotional transitions.
+
+### 2. Multi-Turn Memory Window (`src/ai/gemini.js`, Lines 149–176)
+* **20-Message Retention**: Artrix loads the last 20 conversation turns (`recentMessages.slice(-20)`) from Cloud Firestore.
+* **Role Merging**: Consecutive messages of the same role are automatically merged into Gemini's multi-part structure (`contents: [{ role, parts: [{ text }] }]`), ensuring 100% adherence to Google's API protocol.
+
+### 3. Multi-Expression Timeline Parser (`src/components/ChatPanel.jsx`, Lines 8–52)
+* `parseEmotionalSegments(rawText)` breaks each assistant response into an ordered array of segments:
+  ```json
+  [
+    { "text": "Wait, are you serious?!", "mood": { "stateName": "Surprise", "actionType": "trigger_surprise" } },
+    { "text": "That is the coolest project I've heard of all week!", "mood": { "stateName": "Smile", "actionType": "trigger_smile" } },
+    { "text": "How did you manage to build it so quickly?", "mood": { "stateName": "Confused", "actionType": "trigger_confusion" } }
+  ]
+  ```
+
+### 4. Synchronized Real-Time Speech Queue (`src/ai/tts.js`, Lines 120–195)
+* `speakSegments(segments, onSegmentStart, onAllComplete)` plays each sentence sequentially using the browser's high-definition natural voice engine (`Microsoft Jenny Online (Natural)`).
+* As each sentence begins speaking, `onSegmentStart` triggers the avatar's corresponding state machine input in real-time.
+* `stopSpeech()` increments an internal cancellation token (`speechToken++`), guaranteeing that interrupting or muting speech instantly cancels queued segments without overlaps or repetitions.
+
+### 5. 2-Second Idle Auto-Revert (`src/App.jsx`, Lines 47–75)
+* When speech finishes (or 2 seconds after text renders in muted mode), `scheduleIdleRevert(2000)` fires.
+* If no new typing occurs for 2 seconds, Artrix smoothly and automatically returns to her natural resting **Idle** stance (`Btn_Normal = 1`).
+* Any keystroke in the chat input refreshes this timer.
 
 ---
 
