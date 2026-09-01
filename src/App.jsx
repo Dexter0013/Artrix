@@ -89,23 +89,10 @@ export default function App() {
   }, [cancelIdleRevert, resetToIdle, inputNormal, scheduleIdleRevert]);
 
   return (
-    <div style={{
-      ...styles.page,
-      backgroundImage: `url('${BG_PATH}')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundAttachment: 'fixed',
-      backgroundRepeat: 'no-repeat',
-    }}>
-      {/* Dark green overlay over the background GIF */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(4, 18, 8, 0.50)',
-        pointerEvents: 'none',
-        zIndex: -1,
-      }} />
-      <header style={styles.header}>
+    <div
+      style={{ ...styles.page, '--bg-gif': `url('${BG_PATH}')` }}
+      className="app-bg"
+    >      <header style={styles.header}>
         <h1 style={styles.mainTitle}>Artrix</h1>
       </header>
 

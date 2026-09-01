@@ -90,6 +90,40 @@ code, pre, .font-mono {
   animation: fadeIn 0.25s ease-out forwards;
 }
 
+/* ─── Background + Overlay ──────────────────────────────────────────────── */
+.app-bg {
+  position: relative;
+  background-image: var(--bg-gif);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Overlay via ::before so it sits under all content */
+.app-bg::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 18, 8, 0.50);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Mobile fix: iOS Safari ignores background-attachment:fixed — use scroll */
+@media (max-width: 800px) {
+  .app-bg {
+    background-attachment: scroll;
+    background-size: cover;
+  }
+
+  /* On mobile use absolute so it scrolls with content */
+  .app-bg::before {
+    position: absolute;
+    min-height: 100%;
+  }
+}
+
 /* ─── Responsive Layout ─────────────────────────────────────────────────── */
 .app-layout {
   display: flex;
