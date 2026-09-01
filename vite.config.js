@@ -1,14 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [react()],
   assetsInclude: ['**/*.riv'],
-  // In development use '/', in production build use '/AI-Assisant/' for GitHub Pages
-  base: mode === 'production' ? '/AI-Assisant/' : '/',
+  // Relative base allows the site to work on https://dexter0013.github.io/Artrix/ or any subpath
+  base: './',
   server: {
     port: 5173,
     open: true,
   },
-}));
+});
 

@@ -4,7 +4,7 @@ import AssistantStage from './components/AssistantStage.jsx';
 import MoodController from './components/MoodController.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 
-const RIV_PATH = `${import.meta.env.BASE_URL}20673-38905-deer-girl.riv`.replace(/\/+/g, '/');
+const RIV_PATH = `${import.meta.env.BASE_URL || './'}20673-38905-deer-girl.riv`;
 const SM_NAME = 'Main';
 
 export default function App() {
