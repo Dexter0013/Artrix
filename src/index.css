@@ -40,12 +40,12 @@ body {
   line-height: 1.5;
 }
 
-/* Dark overlay so content stays readable over the GIF */
+/* Dark green overlay over the background GIF */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: rgba(10, 18, 13, 0.62);
+  background: rgba(4, 18, 8, 0.72);
   pointer-events: none;
   z-index: 0;
 }

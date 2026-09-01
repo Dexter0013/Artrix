@@ -97,6 +97,14 @@ export default function App() {
       backgroundAttachment: 'fixed',
       backgroundRepeat: 'no-repeat',
     }}>
+      {/* Dark green overlay over the background GIF */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(4, 18, 8, 0.50)',
+        pointerEvents: 'none',
+        zIndex: -1,
+      }} />
       <header style={styles.header}>
         <h1 style={styles.mainTitle}>Artrix</h1>
       </header>
@@ -130,6 +138,8 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     padding: '24px 20px 60px',
+    position: 'relative',
+    zIndex: 1,
   },
   header: {
     textAlign: 'center',
