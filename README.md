@@ -1,4 +1,4 @@
-# 🦌 Personal AI Assistant
+# 🦌 Artrix
 
 An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, paired with a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
 
