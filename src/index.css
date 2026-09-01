@@ -175,4 +175,10 @@ code, pre, .font-mono {
     max-width: 100%;
     flex: 1;
   }
+
+  /* Crop the GIF background to portrait center on mobile */
+  .bg-gif-layer {
+    background-position: center top;
+    background-size: cover;
+  }
 }

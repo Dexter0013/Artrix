@@ -91,7 +91,7 @@ export default function App() {
   return (
     <>
       {/* Background GIF — fixed layer below everything */}
-      <div style={{
+      <div className="bg-gif-layer" style={{
         position: 'fixed', inset: 0, zIndex: 0,
         backgroundImage: `url('${BG_PATH}')`,
         backgroundSize: 'cover',
