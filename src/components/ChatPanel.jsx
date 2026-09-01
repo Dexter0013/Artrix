@@ -293,7 +293,7 @@ export default function ChatPanel({ onMoodDetected }) {
             <textarea
               id="chat-input"
               style={styles.textarea}
-              placeholder={isGenerating ? 'Artrix is thinking…' : 'Type a message… (e.g. Tell me a fun fact!)'}
+              placeholder={isGenerating ? 'Thinking…' : 'Enter your thoughts…'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -568,11 +568,14 @@ const styles = {
     borderRadius: '12px',
     color: '#fff',
     fontSize: '14px',
-    padding: '10px 14px',
+    padding: '11px 14px',
     outline: 'none',
     fontFamily: 'inherit',
-    lineHeight: '1.5',
+    lineHeight: '1.4',
+    height: '44px',
+    minHeight: '44px',
     maxHeight: '120px',
+    boxSizing: 'border-box',
     overflowY: 'auto',
   },
   sendBtn: {
