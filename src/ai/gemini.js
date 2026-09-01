@@ -138,20 +138,34 @@ export async function generateGeminiReply(userText, recentMessages = []) {
     modelName = 'gemini-3.5-flash';
   }
 
-  // Format multi-turn conversation history
+  // Format multi-turn conversation history (expanded 20-message memory window)
   const contents = [];
+  let lastRole = null;
 
-  recentMessages.slice(-8).forEach((msg) => {
+  recentMessages.slice(-20).forEach((msg) => {
+    if (!msg.text || !msg.text.trim()) return;
+    const role = msg.role === 'user' ? 'user' : 'model';
+
+    if (role === lastRole && contents.length > 0) {
+      // Merge consecutive same-role messages to satisfy API multi-turn rules
+      contents[contents.length - 1].parts.push({ text: msg.text });
+    } else {
+      contents.push({
+        role,
+        parts: [{ text: msg.text }],
+      });
+      lastRole = role;
+    }
+  });
+
+  if (lastRole === 'user' && contents.length > 0) {
+    contents[contents.length - 1].parts.push({ text: userText });
+  } else {
     contents.push({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }],
+      role: 'user',
+      parts: [{ text: userText }],
     });
-  });
-
-  contents.push({
-    role: 'user',
-    parts: [{ text: userText }],
-  });
+  }
 
   const makeRequest = async (model, includeSystemInstruction = true) => {
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
