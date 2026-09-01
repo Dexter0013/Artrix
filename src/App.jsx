@@ -89,13 +89,27 @@ export default function App() {
   }, [cancelIdleRevert, resetToIdle, inputNormal, scheduleIdleRevert]);
 
   return (
-    <div
-      style={{ ...styles.page, '--bg-gif': `url('${BG_PATH}')` }}
-      className="app-bg"
-    >      <header style={styles.header}>
-        <h1 style={styles.mainTitle}>Artrix</h1>
-      </header>
+    <>
+      {/* Background GIF — fixed layer below everything */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 0,
+        backgroundImage: `url('${BG_PATH}')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }} />
+      {/* Dark green overlay — above GIF, below content */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 1,
+        background: 'rgba(4, 18, 8, 0.50)',
+        pointerEvents: 'none',
+      }} />
 
+      {/* Page content — above both layers */}
+      <div style={styles.page}>
+        <header style={styles.header}>
+          <h1 style={styles.mainTitle}>Artrix</h1>
+        </header>
       <main className="app-layout">
         <div className="avatar-col">
           <AssistantStage
@@ -114,7 +128,8 @@ export default function App() {
           />
         </div>
       </main>
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -126,7 +141,7 @@ const styles = {
     alignItems: 'center',
     padding: '24px 20px 60px',
     position: 'relative',
-    zIndex: 1,
+    zIndex: 2,
   },
   header: {
     textAlign: 'center',
