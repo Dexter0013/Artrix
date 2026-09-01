@@ -108,8 +108,11 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   };
 }
 
-/** Stop any currently active speech */
+let speechToken = 0;
+
+/** Stop any currently active speech and cancel segment queues */
 export function stopSpeech() {
+  speechToken++;
   if (typeof window !== 'undefined' && window.speechSynthesis) {
     try {
       window.speechSynthesis.cancel();
@@ -117,6 +120,81 @@ export function stopSpeech() {
       // Ignore
     }
   }
+}
+
+/**
+ * Speaks an array of emotional segments sequentially.
+ * Triggers onSegmentStart(seg, index) right as each segment starts speaking,
+ * enabling real-time facial expression transitions synchronized with spoken words.
+ */
+export function speakSegments(segments, onSegmentStart, onAllComplete) {
+  if (typeof window === 'undefined' || !window.speechSynthesis) {
+    if (onAllComplete) onAllComplete();
+    return;
+  }
+
+  stopSpeech();
+  unlockAudio();
+
+  if (!segments || segments.length === 0) {
+    if (onAllComplete) onAllComplete();
+    return;
+  }
+
+  const myToken = speechToken;
+  let index = 0;
+
+  const playNext = () => {
+    if (speechToken !== myToken || index >= segments.length) {
+      if (onAllComplete && speechToken === myToken) onAllComplete();
+      return;
+    }
+
+    const seg = segments[index];
+    index++;
+
+    const clean = (seg.text || '')
+      .replace(/\[(IDLE|NORMAL|SMILE|HAPPY|SURPRISE|CONFUSED|ANGRY)\]/gi, '')
+      .replace(/[*_#`]/g, '')
+      .trim();
+
+    if (!clean) {
+      playNext();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.pitch = 1.12; // Mature, calm female tone
+    utterance.rate  = 1.0;  // Natural conversational tempo
+
+    const voice = getBestFemaleVoice();
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    utterance.onstart = () => {
+      if (speechToken === myToken && onSegmentStart) {
+        onSegmentStart(seg, index - 1);
+      }
+    };
+
+    utterance.onend = () => {
+      if (speechToken === myToken) {
+        playNext();
+      }
+    };
+
+    utterance.onerror = (e) => {
+      console.warn('[TTS] Segment speech error:', e);
+      if (speechToken === myToken) {
+        playNext();
+      }
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  playNext();
 }
 
 /**
@@ -131,7 +209,7 @@ export function speakText(rawText, onStart, onEnd) {
 
   // Clean emotion tags & markdown symbols before speaking
   const clean = rawText
-    .replace(/\[(SMILE|SURPRISE|CONFUSED|ANGRY)\]/gi, '')
+    .replace(/\[(IDLE|NORMAL|SMILE|HAPPY|SURPRISE|CONFUSED|ANGRY)\]/gi, '')
     .replace(/[*_#`]/g, '')
     .trim();
 

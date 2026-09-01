@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { useRive, useStateMachineInput, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 import AssistantStage from './components/AssistantStage.jsx';
 import MoodController from './components/MoodController.jsx';
@@ -9,6 +9,7 @@ const SM_NAME = 'Main';
 
 export default function App() {
   const [currentMood, setCurrentMood] = useState('Idle');
+  const idleTimerRef = useRef(null);
 
   const { rive, RiveComponent } = useRive({
     src: RIV_PATH,
@@ -46,14 +47,30 @@ export default function App() {
     }
   };
 
-  const resetToIdle = () => {
+  const cancelIdleRevert = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }, []);
+
+  const resetToIdle = useCallback(() => {
+    cancelIdleRevert();
     setCurrentMood('Idle');
     // Btn_Normal = 1 holds the SM in the idle state
     if (inputNormal) inputNormal.value = 1;
     if (inputBtnSmile) inputBtnSmile.value = 0;
-  };
+  }, [cancelIdleRevert, inputNormal, inputBtnSmile]);
 
-  const handleTriggerMood = (mood) => {
+  const scheduleIdleRevert = useCallback((delayMs = 2000) => {
+    cancelIdleRevert();
+    idleTimerRef.current = setTimeout(() => {
+      resetToIdle();
+    }, delayMs);
+  }, [cancelIdleRevert, resetToIdle]);
+
+  const handleTriggerMood = useCallback((mood, autoRevert = true, delayMs = 2000) => {
+    cancelIdleRevert();
     setCurrentMood(mood.stateName);
 
     if (mood.actionType === 'idle') {
@@ -65,7 +82,11 @@ export default function App() {
     if (inputNormal) inputNormal.value = 0;
     // Fire the selected trigger
     fireInput(mood.actionType, 1);
-  };
+
+    if (autoRevert) {
+      scheduleIdleRevert(delayMs);
+    }
+  }, [cancelIdleRevert, resetToIdle, inputNormal, scheduleIdleRevert]);
 
   return (
     <div style={styles.page}>
@@ -81,13 +102,18 @@ export default function App() {
             onReset={resetToIdle}
           />
           <MoodController
-            onTriggerMood={handleTriggerMood}
+            onTriggerMood={(mood) => handleTriggerMood(mood, true, 2000)}
             activeState={currentMood}
           />
         </div>
 
         <div style={styles.chatColumn}>
-          <ChatPanel onMoodDetected={handleTriggerMood} />
+          <ChatPanel
+            onMoodDetected={handleTriggerMood}
+            onSpeechStart={cancelIdleRevert}
+            onSpeechEnd={() => scheduleIdleRevert(2000)}
+            onTyping={() => scheduleIdleRevert(2000)}
+          />
         </div>
       </main>
     </div>
