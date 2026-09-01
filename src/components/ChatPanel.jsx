@@ -1,10 +1,10 @@
 // ─── Chat Panel ───────────────────────────────────────────────────────────────
-// Real-time Firestore-backed chat panel powered by Google Gemini (Fastest / Flash Lite).
-// Automatically uses the fastest, highest-quota model and displays the active version.
+// Real-time Firestore-backed chat panel powered by Google Gemini 3.5 Flash & Instant Natural Voice.
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { sendMessage, subscribeToMessages, clearHistory } from '../firebase/chat';
 import { useAI } from '../ai/useAI';
+import { speakText, stopSpeech, unlockAudio } from '../ai/tts';
 
 export default function ChatPanel({ onMoodDetected }) {
   const { currentUser, signOut } = useAuth();
@@ -13,6 +13,11 @@ export default function ChatPanel({ onMoodDetected }) {
   const [sending, setSending]     = useState(false);
   const [tempKey, setTempKey]     = useState('');
   const [keyInputError, setKeyInputError] = useState('');
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    const saved = localStorage.getItem('artrix_voice_enabled');
+    return saved === null ? true : saved === 'true';
+  });
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef                 = useRef(null);
 
   // Gemini AI hook
@@ -36,6 +41,13 @@ export default function ChatPanel({ onMoodDetected }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isGenerating]);
+
+  // Clean up audio on unmount
+  useEffect(() => {
+    return () => {
+      stopSpeech();
+    };
+  }, []);
 
   const detectMoodFromText = (msgText) => {
     const t = msgText.toLowerCase();
@@ -80,8 +92,32 @@ export default function ChatPanel({ onMoodDetected }) {
   };
 
   const handleSignOut = async () => {
+    stopSpeech();
     clearApiKey();
     await signOut();
+  };
+
+  const handleToggleVoice = () => {
+    unlockAudio();
+    if (isSpeaking) {
+      stopSpeech();
+      setIsSpeaking(false);
+      return;
+    }
+    setVoiceEnabled((prev) => {
+      const next = !prev;
+      localStorage.setItem('artrix_voice_enabled', next ? 'true' : 'false');
+      return next;
+    });
+  };
+
+  const handleSpeakMessage = (text) => {
+    unlockAudio();
+    speakText(
+      text,
+      () => setIsSpeaking(true),
+      () => setIsSpeaking(false)
+    );
   };
 
   const handleSend = async () => {
@@ -89,6 +125,7 @@ export default function ChatPanel({ onMoodDetected }) {
     if (!text || sending || isGenerating) return;
     setInput('');
     setSending(true);
+    unlockAudio(); // Unlock audio immediately on user click
 
     // Initial avatar reaction to user message
     const userMood = detectMoodFromText(text);
@@ -132,6 +169,11 @@ export default function ChatPanel({ onMoodDetected }) {
 
       // 4. Save AI response to Firestore
       await sendMessage(currentUser.uid, cleanText || "I'm here to help!", 'assistant');
+
+      // 5. Speak response with Kokoro TTS if voice is enabled
+      if (voiceEnabled && cleanText) {
+        handleSpeakMessage(cleanText);
+      }
     } catch (err) {
       console.error('Gemini error:', err);
       await sendMessage(
@@ -153,6 +195,7 @@ export default function ChatPanel({ onMoodDetected }) {
 
   const handleClear = async () => {
     if (window.confirm('Clear all chat history?')) {
+      stopSpeech();
       await clearHistory(currentUser.uid);
     }
   };
@@ -180,10 +223,35 @@ export default function ChatPanel({ onMoodDetected }) {
         </div>
 
         <div style={styles.actions}>
+          {/* Voice Toggle Button (Kokoro TTS) */}
+          <button
+            id="btn-toggle-voice"
+            title={
+              isSpeaking
+                ? 'Speaking… (Click to stop)'
+                : voiceEnabled
+                ? 'Voice Enabled (Kokoro TTS af_heart) - Click to Mute'
+                : 'Voice Muted - Click to Enable'
+            }
+            style={{
+              ...styles.iconBtn,
+              background: isSpeaking
+                ? 'rgba(62, 207, 207, 0.25)'
+                : voiceEnabled
+                ? 'rgba(255, 255, 255, 0.08)'
+                : 'none',
+              boxShadow: isSpeaking ? '0 0 12px rgba(62, 207, 207, 0.6)' : 'none',
+              border: isSpeaking ? '1px solid #3ECFCF' : 'none',
+            }}
+            onClick={handleToggleVoice}
+          >
+            {isSpeaking ? '🗣️' : voiceEnabled ? '🔊' : '🔇'}
+          </button>
+
           {hasKey && (
             <button
               id="btn-change-api-key"
-              title="Change Gemini API Key"
+              title="Change or Clear Gemini API Key"
               style={styles.iconBtn}
               onClick={handleChangeKey}
             >
@@ -263,7 +331,7 @@ export default function ChatPanel({ onMoodDetected }) {
                 <span style={styles.emptyIcon}>✨</span>
                 <p style={styles.emptyTitle}>Chat with Artrix</p>
                 <p style={styles.emptySub}>
-                  Powered by Google {activeModel}
+                  Powered by Google {activeModel} • Natural Neural Voice
                 </p>
               </div>
             )}
@@ -275,9 +343,20 @@ export default function ChatPanel({ onMoodDetected }) {
                   ...(msg.role === 'user' ? styles.userBubble : styles.assistantBubble),
                 }}
               >
-                <span style={styles.roleLabel}>
-                  {msg.role === 'user' ? 'You' : 'Artrix'}
-                </span>
+                <div style={styles.bubbleHeader}>
+                  <span style={styles.roleLabel}>
+                    {msg.role === 'user' ? 'You' : 'Artrix'}
+                  </span>
+                  {msg.role === 'assistant' && (
+                    <button
+                      title="Play speech (Natural Voice)"
+                      style={styles.speakMsgBtn}
+                      onClick={() => handleSpeakMessage(msg.text)}
+                    >
+                      🔊
+                    </button>
+                  )}
+                </div>
                 <p style={styles.msgText}>{msg.text}</p>
               </div>
             ))}
@@ -393,8 +472,8 @@ const styles = {
     cursor: 'pointer',
     fontSize: '16px',
     padding: '4px',
-    borderRadius: '6px',
-    transition: 'background 0.15s',
+    borderRadius: '8px',
+    transition: 'all 0.15s ease',
   },
   signOutBtn: {
     background: 'rgba(255,255,255,0.08)',
@@ -517,6 +596,13 @@ const styles = {
     borderRadius: '16px',
     lineHeight: '1.5',
   },
+  bubbleHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: '4px',
+    gap: '8px',
+  },
   userBubble: {
     alignSelf: 'flex-end',
     background: 'linear-gradient(135deg, #6C63FF, #3ECFCF)',
@@ -528,6 +614,16 @@ const styles = {
     background: 'rgba(255,255,255,0.08)',
     color: 'rgba(255,255,255,0.85)',
     borderBottomLeftRadius: '4px',
+  },
+  speakMsgBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '12px',
+    padding: '1px 3px',
+    opacity: 0.6,
+    borderRadius: '4px',
+    transition: 'all 0.15s ease',
   },
   thinkingBubble: {
     opacity: 0.85,
@@ -554,7 +650,6 @@ const styles = {
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: '0.05em',
-    marginBottom: '4px',
     opacity: 0.7,
   },
   msgText: {

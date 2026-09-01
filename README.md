@@ -15,6 +15,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
   - ❓ **Confused** — Curious / query state
   - 😠 **Angry** — Alert / frustration state
 - **Gemini 3 Frontier AI Architecture** — Strictly targets currently-live Gemini 3 Flash models with a zero-failure priority chain: **`gemini-3.5-flash`** ➔ **`gemini-3.5-flash-lite`** ➔ **`gemini-3.1-flash-lite`** (safe older fallback). Skips dead and deprecated model versions entirely. Delivers sub-second latency, 800 output tokens, and massive context capacity while dynamically displaying the active model version in the chat header badge.
+- **Instant Natural Female Voice Engine** — Zero-latency streaming voice engine that automatically prioritizes high-definition neural female voices (`Microsoft Jenny Online (Natural)`, `Microsoft Aria Online (Natural)`, `Google UK English Female`, `Samantha`). Zero model downloads, 0ms lag, zero server costs, with one-click voice muting/unmuting (🔊/🔇) and replay on any message bubble.
 - **Bring-Your-Own-Key (BYOK) Security** — Dedicated in-app connect screen. Users enter their free Google Gemini API key, stored exclusively in their own browser's `localStorage`. Keys are never sent to your backend or stored in Firestore.
 - **Automatic Key Purge on Sign-Out** — Signing out completely wipes the stored Gemini API key from browser `localStorage`, ensuring shared or public devices remain fully secure.
 - **Multi-Turn Context & Persistent Memory** — Full conversational memory across the last 20 interaction turns, backed by Firestore real-time storage. Artrix remembers past topics, user preferences, and details across turns and sessions, with one-click history clearing (🗑️).
@@ -31,6 +32,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
 
 - **Frontend**: [React 18](https://react.dev/), [Vite 8](https://vitejs.dev/)
 - **AI Engine**: [Google Gemini Flash Series](https://ai.google.dev/) (Direct REST API, 0 external SDKs, prioritized for high-token Flash throughput)
+- **Voice Engine**: High-Definition Natural Streaming Voice (Microsoft Natural & Google Neural, zero downloads, 0ms latency)
 - **Animation Engine**: [@rive-app/react-canvas](https://rive.app/)
 - **Backend & Auth**: [Firebase](https://firebase.google.com/) (Authentication & Cloud Firestore)
 - **CI/CD & Hosting**: [GitHub Actions](https://github.com/features/actions) & [GitHub Pages](https://pages.github.com/)
@@ -49,6 +51,7 @@ Artrix/
 ├── src/
 │   ├── ai/
 │   │   ├── gemini.js            # Gemini API client with auto-discovery & highest-quota model selection
+│   │   ├── tts.js               # Kokoro TTS client (client-side neural voice, voice af_heart)
 │   │   └── useAI.js             # React hook for conversation state, key storage & active model version
 │   ├── components/
 │   │   ├── AssistantStage.jsx   # Avatar viewport, canvas wrapper & aura glow
