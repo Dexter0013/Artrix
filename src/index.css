@@ -30,12 +30,15 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+  overflow: hidden; /* Prevent body scroll — iOS fix for fixed backgrounds */
+}
+
 body {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-darker);
-  background-attachment: fixed;
   color: var(--text);
-  min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
 }
@@ -53,6 +56,9 @@ body::before {
 #root {
   position: relative;
   z-index: 1;
+  height: 100%;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* smooth momentum scroll on iOS */
 }
 
 code, pre, .font-mono {
