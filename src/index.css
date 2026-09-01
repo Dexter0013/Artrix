@@ -33,15 +33,30 @@
 body {
   font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-darker);
-  background-image: 
-    radial-gradient(circle at 15% 15%, rgba(140, 179, 116, 0.05) 0%, transparent 40%),
-    radial-gradient(circle at 85% 85%, rgba(61, 89, 57, 0.08) 0%, transparent 50%),
-    linear-gradient(180deg, var(--bg-darker) 0%, var(--bg) 100%);
+  background-image: url('./backgroundnature.gif');
+  background-size: cover;
+  background-position: center;
   background-attachment: fixed;
+  background-repeat: no-repeat;
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+}
+
+/* Dark overlay so content stays readable over the GIF */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 18, 13, 0.62);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 code, pre, .font-mono {
@@ -77,4 +92,57 @@ code, pre, .font-mono {
 
 .fade-in {
   animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* ─── Responsive Layout ─────────────────────────────────────────────────── */
+.app-layout {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 1100px;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.avatar-col {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  flex: 1 1 460px;
+}
+
+.chat-col {
+  width: 100%;
+  max-width: 540px;
+  flex: 1 1 440px;
+}
+
+/* ─── Small screens: stack vertically ──────────────────────────────────── */
+@media (max-width: 800px) {
+  .app-layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 0 8px;
+  }
+
+  .avatar-col {
+    max-width: 100%;
+    flex: none;
+    /* Fixed compact height for the canvas on mobile */
+    height: 280px;
+    min-height: 240px;
+    max-height: 320px;
+  }
+
+  .avatar-col .stage-card-fill {
+    height: 100%;
+  }
+
+  .chat-col {
+    max-width: 100%;
+    flex: 1;
+  }
 }

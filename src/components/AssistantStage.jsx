@@ -29,9 +29,6 @@ export default function AssistantStage({ RiveComponent, currentMood, onReset }) 
             State: <strong>{currentMood}</strong>
           </span>
         </div>
-        <button onClick={onReset} style={styles.resetBtn} title="Reset to Idle">
-          ↺ Idle
-        </button>
       </div>
     </div>
   );
@@ -42,12 +39,12 @@ const styles = {
     background: 'var(--panel)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-lg)',
-    padding: '22px',
+    padding: '16px',
     width: '100%',
-    maxWidth: '420px',
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '12px',
     boxShadow: '0 12px 36px rgba(0, 0, 0, 0.4)',
     position: 'relative',
   },
@@ -88,8 +85,8 @@ const styles = {
     fontStyle: 'italic',
   },
   canvasContainer: {
+    flex: 1,
     width: '100%',
-    aspectRatio: '1 / 1',
     borderRadius: 'var(--radius-md)',
     background: '#09100c',
     overflow: 'hidden',
@@ -111,7 +108,7 @@ const styles = {
     top: 0,
     left: 0,
     width: '100%',
-    height: '135%', // renders the full artboard but clips the bottom ~27% (the hover buttons)
+    height: '125%', // slightly extends to crop just the bottom interactive controls
     display: 'block',
     zIndex: 1,
   },

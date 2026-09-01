@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { useRive, useStateMachineInput, Layout, Fit, Alignment } from '@rive-app/react-canvas';
 import AssistantStage from './components/AssistantStage.jsx';
-import MoodController from './components/MoodController.jsx';
 import ChatPanel from './components/ChatPanel.jsx';
 
 const RIV_PATH = `${import.meta.env.BASE_URL || './'}20673-38905-deer-girl.riv`;
@@ -91,23 +90,19 @@ export default function App() {
   return (
     <div style={styles.page}>
       <header style={styles.header}>
-        <h1 style={styles.mainTitle}>AI Assistant</h1>
+        <h1 style={styles.mainTitle}>Artrix</h1>
       </header>
 
-      <main style={styles.layout}>
-        <div style={styles.avatarColumn}>
+      <main className="app-layout">
+        <div className="avatar-col">
           <AssistantStage
             RiveComponent={RiveComponent}
             currentMood={currentMood}
             onReset={resetToIdle}
           />
-          <MoodController
-            onTriggerMood={(mood) => handleTriggerMood(mood, true, 2000)}
-            activeState={currentMood}
-          />
         </div>
 
-        <div style={styles.chatColumn}>
+        <div className="chat-col">
           <ChatPanel
             onMoodDetected={handleTriggerMood}
             onSpeechStart={cancelIdleRevert}
@@ -139,27 +134,5 @@ const styles = {
     letterSpacing: '-0.5px',
     color: 'var(--text)',
     margin: 0,
-  },
-  layout: {
-    display: 'flex',
-    gap: '24px',
-    width: '100%',
-    maxWidth: '920px',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    alignItems: 'flex-start',
-  },
-  avatarColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '16px',
-    width: '100%',
-    maxWidth: '430px',
-    flex: '1 1 360px',
-  },
-  chatColumn: {
-    width: '100%',
-    maxWidth: '430px',
-    flex: '1 1 360px',
   },
 };
