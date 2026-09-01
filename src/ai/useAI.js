@@ -2,7 +2,13 @@
 // Manages Google Gemini API state, generation, and active model version resolution.
 
 import { useState, useCallback, useEffect } from 'react';
-import { generateGeminiReply, getGeminiApiKey, setGeminiApiKey, getFastestModel } from './gemini';
+import {
+  generateGeminiReply,
+  getGeminiApiKey,
+  setGeminiApiKey,
+  clearGeminiApiKey,
+  getFastestModel,
+} from './gemini';
 
 export function useAI() {
   const [apiKey, setApiKeyState] = useState(() => getGeminiApiKey());
@@ -32,6 +38,13 @@ export function useAI() {
     setError(null);
   }, []);
 
+  const clearApiKey = useCallback(() => {
+    clearGeminiApiKey();
+    setApiKeyState('');
+    setActiveModel('Gemini 2.0 Flash Lite');
+    setError(null);
+  }, []);
+
   const generate = useCallback(async (userText, recentMessages = []) => {
     setIsGenerating(true);
     setError(null);
@@ -50,6 +63,7 @@ export function useAI() {
     apiKey,
     hasKey: Boolean(apiKey && apiKey.trim()),
     saveApiKey,
+    clearApiKey,
     activeModel,
     generate,
     isGenerating,

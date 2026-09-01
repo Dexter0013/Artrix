@@ -1,5 +1,5 @@
 // ─── Google Gemini API Client (Latest High-Token Flash Models Only) ──────────
-// Strictly selects the latest Google Flash models offering the highest token allowances.
+// Strictly selects active Google Flash models, automatically excluding any discontinued versions.
 
 const SYSTEM_INSTRUCTION = `You are Artrix, a friendly, witty, and charming AI assistant deer girl with an expressive animated avatar.
 Keep your responses conversational, concise, and helpful (typically 1 to 3 sentences).
@@ -11,28 +11,46 @@ At the very end of every reply, you MUST include exactly ONE emotion tag from th
 Example response: "I'd love to help you with that! What's on your mind? [SMILE]"`;
 
 export const STORAGE_KEY = 'artrix_gemini_api_key';
+export const ACTIVE_MODEL_STORAGE_KEY = 'artrix_gemini_active_model';
 
 let cachedOptimalModel = null;
 let cachedDisplayName = null;
+
+// Discontinued/deprecated models to exclude
+const DISCONTINUED_PATTERNS = [
+  '2.5-flash-lite',
+  '2-5-flash-lite',
+  'gemini-1.0',
+  'gemini-pro-vision',
+];
+
+const isDiscontinued = (id) =>
+  DISCONTINUED_PATTERNS.some((pattern) => id.toLowerCase().includes(pattern));
 
 export function getGeminiApiKey() {
   return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_GEMINI_API_KEY || '';
 }
 
 export function setGeminiApiKey(key) {
-  cachedOptimalModel = null;
-  cachedDisplayName = null;
+  clearGeminiApiKey();
   if (key && key.trim()) {
     localStorage.setItem(STORAGE_KEY, key.trim());
-  } else {
-    localStorage.removeItem(STORAGE_KEY);
   }
 }
 
-// Find the latest Flash model with the highest token limits & fastest throughput
+export function clearGeminiApiKey() {
+  cachedOptimalModel = null;
+  cachedDisplayName = null;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(ACTIVE_MODEL_STORAGE_KEY);
+}
+
+// Find the latest active Flash model with the highest token limits & fastest throughput
 export async function getFastestModel(apiKey) {
-  if (cachedOptimalModel) {
-    return { id: cachedOptimalModel, name: cachedDisplayName };
+  // If stored in localStorage and not discontinued, use it
+  const storedModel = localStorage.getItem(ACTIVE_MODEL_STORAGE_KEY);
+  if (storedModel && !isDiscontinued(storedModel) && cachedOptimalModel === storedModel) {
+    return { id: cachedOptimalModel, name: cachedDisplayName || storedModel };
   }
 
   const key = apiKey || getGeminiApiKey();
@@ -44,33 +62,38 @@ export async function getFastestModel(apiKey) {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
     if (res.ok) {
       const data = await res.json();
-      
-      // STRICT FILTER: Only consider models containing 'flash' with generateContent support
+
+      // STRICT FILTER: Only active Flash models supporting generateContent, excluding discontinued models
       const flashModels = (data.models || [])
         .filter((m) =>
           m.supportedGenerationMethods?.includes('generateContent') &&
-          m.name.toLowerCase().includes('flash')
+          m.name.toLowerCase().includes('flash') &&
+          !isDiscontinued(m.name)
         )
         .map((m) => ({
           id: m.name.replace('models/', ''),
           name: m.displayName || m.name.replace('models/', ''),
         }));
 
-      console.log('[Gemini] Flash models available for this key:', flashModels);
+      console.log('[Gemini] Available active Flash models:', flashModels);
 
-      // Priority ranking: Latest versions with highest token allowance first
+      // Priority ranking: Recommended latest versions with highest token allowance first
       const priorityCheckers = [
-        // 1. Flash Lite (Highest TPM quota: 4M TPM free tier, 1M context)
-        (id) => id.includes('2.5-flash-lite') || id.includes('2-5-flash-lite'),
-        (id) => id.includes('2.0-flash-lite') || id.includes('2-0-flash-lite') || id.includes('flash-lite'),
-        // 2. Full Flash 2.x (1M context window, high speed)
-        (id) => id.includes('2.5-flash') || id.includes('2-5-flash'),
-        (id) => id === 'gemini-2.0-flash' || id.includes('2.0-flash'),
-        // 3. Flash 1.5 Latest (1M context window)
+        // 1. Google's newly recommended 3.5 Flash Lite
+        (id) => id.includes('3.5-flash-lite') || id.includes('3-5-flash-lite'),
+        (id) => id.includes('3.1-flash-lite') || id.includes('3-1-flash-lite'),
+        // 2. Stable Gemini 2.0 Flash Lite (Proven high-speed 4M TPM free tier)
+        (id) => id === 'gemini-2.0-flash-lite' || id.includes('2.0-flash-lite') || id.includes('2-0-flash-lite'),
+        // 3. Gemini 2.0 Flash
+        (id) => id === 'gemini-2.0-flash' || id.includes('2.0-flash') || id.includes('2-0-flash'),
+        // 4. Gemini 1.5 Flash (Battle-tested standard)
         (id) => id === 'gemini-1.5-flash-latest',
         (id) => id === 'gemini-1.5-flash',
         (id) => id.includes('1.5-flash-8b'),
         (id) => id.includes('1.5-flash'),
+        // 5. Any generic active flash model
+        (id) => id.includes('flash-lite'),
+        (id) => id.includes('flash'),
       ];
 
       for (const checker of priorityCheckers) {
@@ -78,7 +101,8 @@ export async function getFastestModel(apiKey) {
         if (found) {
           cachedOptimalModel = found.id;
           cachedDisplayName = found.name;
-          console.log('[Gemini] High-token Flash model selected:', found);
+          localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, found.id);
+          console.log('[Gemini] Optimal active Flash model selected:', found);
           return found;
         }
       }
@@ -86,6 +110,7 @@ export async function getFastestModel(apiKey) {
       if (flashModels.length > 0) {
         cachedOptimalModel = flashModels[0].id;
         cachedDisplayName = flashModels[0].name;
+        localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, flashModels[0].id);
         return flashModels[0];
       }
     }
@@ -93,8 +118,10 @@ export async function getFastestModel(apiKey) {
     console.warn('[Gemini] Flash model detection failed, using fallback:', err);
   }
 
+  // Safe universal fallback
   cachedOptimalModel = 'gemini-2.0-flash-lite';
   cachedDisplayName = 'Gemini 2.0 Flash Lite';
+  localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, cachedOptimalModel);
   return { id: cachedOptimalModel, name: cachedDisplayName };
 }
 
@@ -106,7 +133,12 @@ export async function generateGeminiReply(userText, recentMessages = []) {
   }
 
   const modelInfo = await getFastestModel(apiKey);
-  const modelName = modelInfo.id;
+  let modelName = modelInfo.id;
+
+  // If cached model is discontinued, force fallback
+  if (isDiscontinued(modelName)) {
+    modelName = 'gemini-2.0-flash-lite';
+  }
 
   // Format multi-turn conversation history
   const contents = [];
@@ -130,7 +162,7 @@ export async function generateGeminiReply(userText, recentMessages = []) {
       contents,
       generationConfig: {
         temperature: 0.7,
-        maxOutputTokens: 800, // High token output budget
+        maxOutputTokens: 800,
       },
     };
 
@@ -153,26 +185,36 @@ export async function generateGeminiReply(userText, recentMessages = []) {
 
   // If 400 (e.g. system_instruction unsupported on certain models), retry without it
   if (!response.ok && response.status === 400) {
-    response = await makeRequest(modelName, false);
+    const testClone = response.clone();
+    const errObj = await testClone.json().catch(() => ({}));
+    const errMsg = errObj.error?.message || '';
+
+    // If it's specifically a system instruction issue, retry without it
+    if (errMsg.toLowerCase().includes('system') || errMsg.toLowerCase().includes('instruction')) {
+      response = await makeRequest(modelName, false);
+    }
   }
 
-  // If 404 / unsupported, cascade strictly across Flash models only
+  // If failed (e.g. model no longer available, 404, 403, or invalid version), cascade through active Flash candidates
   if (!response.ok) {
-    console.warn(`[Gemini] Flash model ${modelName} returned status ${response.status}. Trying next Flash candidate...`);
+    console.warn(`[Gemini] Model ${modelName} returned status ${response.status}. Attempting active Flash fallbacks...`);
     const flashFallbacks = [
+      'gemini-3.5-flash-lite',
       'gemini-2.0-flash-lite',
       'gemini-2.0-flash-lite-preview-02-05',
       'gemini-2.0-flash',
       'gemini-1.5-flash-latest',
       'gemini-1.5-flash',
-    ].filter((m) => m !== modelName);
+    ].filter((m) => m !== modelName && !isDiscontinued(m));
 
     for (const fb of flashFallbacks) {
-      console.log(`[Gemini] Trying Flash fallback: ${fb}...`);
+      console.log(`[Gemini] Trying fallback Flash candidate: ${fb}...`);
       const fbRes = await makeRequest(fb, true);
       if (fbRes.ok) {
         response = fbRes;
         cachedOptimalModel = fb;
+        cachedDisplayName = fb;
+        localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, fb);
         break;
       }
     }

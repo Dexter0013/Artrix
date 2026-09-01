@@ -1,6 +1,7 @@
 // ─── Auth Context ─────────────────────────────────────────────────────────────
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthChange, signInWithGoogle, signOut } from '../firebase/auth';
+import { onAuthChange, signInWithGoogle, signOut as firebaseSignOut } from '../firebase/auth';
+import { clearGeminiApiKey } from '../ai/gemini';
 
 const AuthContext = createContext(null);
 
@@ -12,16 +13,25 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthChange((user) => {
       setCurrentUser(user);
+      if (!user) {
+        // Automatically delete stored API key from browser storage on logout
+        clearGeminiApiKey();
+      }
       setLoading(false);
     });
     return unsubscribe;
   }, []);
 
+  const handleSignOut = async () => {
+    clearGeminiApiKey();
+    await firebaseSignOut();
+  };
+
   const value = {
     currentUser,
     loading,
     signIn:  signInWithGoogle,
-    signOut,
+    signOut: handleSignOut,
   };
 
   return (

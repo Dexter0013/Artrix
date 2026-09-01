@@ -19,6 +19,7 @@ export default function ChatPanel({ onMoodDetected }) {
   const {
     hasKey,
     saveApiKey,
+    clearApiKey,
     activeModel,
     generate,
     isGenerating,
@@ -66,12 +67,21 @@ export default function ChatPanel({ onMoodDetected }) {
 
   const handleChangeKey = () => {
     const newKey = window.prompt(
-      'Update your Google Gemini API Key:\n(Leave empty to remove)',
+      'Enter a new Gemini API Key to update, or leave empty and click OK to delete the stored key from this browser:',
       ''
     );
     if (newKey !== null) {
-      saveApiKey(newKey.trim());
+      if (newKey.trim()) {
+        saveApiKey(newKey.trim());
+      } else {
+        clearApiKey();
+      }
     }
+  };
+
+  const handleSignOut = async () => {
+    clearApiKey();
+    await signOut();
   };
 
   const handleSend = async () => {
@@ -191,7 +201,7 @@ export default function ChatPanel({ onMoodDetected }) {
           <button
             id="btn-sign-out"
             style={styles.signOutBtn}
-            onClick={signOut}
+            onClick={handleSignOut}
           >
             Sign out
           </button>
