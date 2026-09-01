@@ -12,7 +12,7 @@ import {
 
 export function useAI() {
   const [apiKey, setApiKeyState] = useState(() => getGeminiApiKey());
-  const [activeModel, setActiveModel] = useState('Gemini 2.0 Flash Lite');
+  const [activeModel, setActiveModel] = useState('Gemini 3.5 Flash');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
@@ -41,7 +41,7 @@ export function useAI() {
   const clearApiKey = useCallback(() => {
     clearGeminiApiKey();
     setApiKeyState('');
-    setActiveModel('Gemini 2.0 Flash Lite');
+    setActiveModel('Gemini 3.5 Flash');
     setError(null);
   }, []);
 

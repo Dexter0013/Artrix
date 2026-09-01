@@ -1,6 +1,6 @@
 # 🦌 Artrix — AI Assistant
 
-An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, conversational intelligence via **[Google Gemini](https://ai.google.dev/)** (defaulting to Gemini 2.0 Flash Lite), and a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
+An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, conversational intelligence via **[Google Gemini](https://ai.google.dev/)** (defaulting to Gemini 3.5 Flash), and a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
 
 🔗 **Live Demo:** [https://dexter0013.github.io/Artrix/](https://dexter0013.github.io/Artrix/)
 
@@ -14,7 +14,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
   - ⚡ **Surprise** — Thinking / shocked reaction
   - ❓ **Confused** — Curious / query state
   - 😠 **Angry** — Alert / frustration state
-- **High-Token Flash AI Architecture** — Strictly routes inference through Google's latest **Flash series** models (`gemini-3.5-flash-lite`, `gemini-2.0-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`). Delivers sub-second latency, 800 output tokens, and maximizes token capacity (up to 4M TPM free-tier throughput and 1M+ context window) while dynamically displaying the active version in the header badge.
+- **Gemini 3 Frontier AI Architecture** — Strictly targets currently-live Gemini 3 Flash models with a zero-failure priority chain: **`gemini-3.5-flash`** ➔ **`gemini-3.5-flash-lite`** ➔ **`gemini-3.1-flash-lite`** (safe older fallback). Skips dead and deprecated model versions entirely. Delivers sub-second latency, 800 output tokens, and massive context capacity while dynamically displaying the active model version in the chat header badge.
 - **Bring-Your-Own-Key (BYOK) Security** — Dedicated in-app connect screen. Users enter their free Google Gemini API key, stored exclusively in their own browser's `localStorage`. Keys are never sent to your backend or stored in Firestore.
 - **Automatic Key Purge on Sign-Out** — Signing out completely wipes the stored Gemini API key from browser `localStorage`, ensuring shared or public devices remain fully secure.
 - **AI-Driven Emotion Synchronization** — Assistant generates emotional tags (`[SMILE]`, `[SURPRISE]`, `[CONFUSED]`, `[ANGRY]`) to dynamically animate the Rive avatar's face in real-time as she speaks.
