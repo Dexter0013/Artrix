@@ -1,6 +1,6 @@
 # 🦌 Artrix — AI Assistant
 
-An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, paired with a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
+An interactive AI Assistant web application featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, conversational intelligence via **[Google Gemini](https://ai.google.dev/)** (defaulting to Gemini 2.0 Flash Lite), and a full **Firebase** backend for authentication and private chat persistence, built with **React** and **Vite**, and deployed via **GitHub Pages**.
 
 🔗 **Live Demo:** [https://dexter0013.github.io/Artrix/](https://dexter0013.github.io/Artrix/)
 
@@ -14,9 +14,12 @@ An interactive AI Assistant web application featuring a real-time animated avata
   - ⚡ **Surprise** — Thinking / shocked reaction
   - ❓ **Confused** — Curious / query state
   - 😠 **Angry** — Alert / frustration state
+- **High-Token Flash AI Architecture** — Strictly routes inference through Google's latest **Flash series** models (`gemini-2.0-flash-lite`, `gemini-2.5-flash-lite`, `gemini-2.0-flash`, `gemini-1.5-flash`). Delivers sub-second latency, 800 output tokens, and maximizes token capacity (up to 4M TPM free-tier throughput and 1M+ context window) while dynamically displaying the active version in the header badge.
+- **Bring-Your-Own-Key (BYOK) Security** — Dedicated in-app connect screen. Users enter their free Google Gemini API key, stored exclusively in their own browser's `localStorage`. Keys are never sent to your backend or stored in Firestore.
+- **AI-Driven Emotion Synchronization** — Assistant generates emotional tags (`[SMILE]`, `[SURPRISE]`, `[CONFUSED]`, `[ANGRY]`) to dynamically animate the Rive avatar's face in real-time as she speaks.
 - **Google Authentication** — Secure Google Sign-In with session persistence and user profile display (`AuthGate` & `AuthContext`).
 - **Real-Time Chat with Firestore** — Messages are synced in real-time to Cloud Firestore under private per-user collections (`users/{userId}/messages`).
-- **Chat Sentiment Reactions** — Assistant automatically reacts with facial expressions matching message keywords (e.g., questions `?`, `"happy"`, `"wow"`, `"angry"`).
+- **Fixed-Height Scrollable Chatbox** — Fixed viewport bounds with smooth auto-scrolling; chat never stretches or extends downwards.
 - **Automated CI/CD** — Zero-downtime deployment to GitHub Pages via GitHub Actions upon pushing to `main`.
 - **State Machine Driven** — Clean state transitions via Rive state machine inputs with hover overrides and viewport clipping.
 
@@ -25,6 +28,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
 ## 🛠️ Tech Stack
 
 - **Frontend**: [React 18](https://react.dev/), [Vite 8](https://vitejs.dev/)
+- **AI Engine**: [Google Gemini Flash Series](https://ai.google.dev/) (Direct REST API, 0 external SDKs, prioritized for high-token Flash throughput)
 - **Animation Engine**: [@rive-app/react-canvas](https://rive.app/)
 - **Backend & Auth**: [Firebase](https://firebase.google.com/) (Authentication & Cloud Firestore)
 - **CI/CD & Hosting**: [GitHub Actions](https://github.com/features/actions) & [GitHub Pages](https://pages.github.com/)
@@ -41,10 +45,13 @@ Artrix/
 ├── public/
 │   └── 20673-38905-deer-girl.riv# Rive animation binary rig
 ├── src/
+│   ├── ai/
+│   │   ├── gemini.js            # Gemini API client with auto-discovery & highest-quota model selection
+│   │   └── useAI.js             # React hook for conversation state, key storage & active model version
 │   ├── components/
 │   │   ├── AssistantStage.jsx   # Avatar viewport, canvas wrapper & aura glow
 │   │   ├── AuthGate.jsx         # Google Sign-in screen & loading spinner
-│   │   ├── ChatPanel.jsx        # Real-time Firestore chat UI & sentiment triggers
+│   │   ├── ChatPanel.jsx        # Real-time Firestore chat UI, key connect card & active version badge
 │   │   └── MoodController.jsx   # 5 manual expression trigger buttons
 │   ├── context/
 │   │   └── AuthContext.jsx      # Global React Context for Firebase Auth state
@@ -84,6 +91,7 @@ The rig binds to the `Main` state machine on the Deer-Girl artboard:
 ### 1. Prerequisites
 * [Node.js](https://nodejs.org/) (v18 or higher recommended)
 * A Firebase Project with **Authentication (Google)** and **Cloud Firestore** enabled
+* A Google Gemini API Key from [Google AI Studio](https://aistudio.google.com/app/apikey) (Free)
 
 ### 2. Installation
 
@@ -103,15 +111,18 @@ Create a local environment file by copying `.env.example`:
 cp .env.example .env.local
 ```
 
-Open `.env.local` and fill in your Firebase project credentials from the [Firebase Console](https://console.firebase.google.com/) (Project Settings > General > Your Apps > Web):
+Open `.env.local` and fill in your Firebase and Gemini credentials:
 
 ```env
-VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_API_KEY=your_firebase_api_key
 VITE_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your_project_id
 VITE_FIREBASE_STORAGE_BUCKET=your_project_id.firebasestorage.app
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
+
+# Optional: You can pre-set a Gemini key here, or enter it directly in the app UI
+VITE_GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### 4. Start Development Server
@@ -124,23 +135,10 @@ Open your browser at `http://localhost:5173/`.
 
 ---
 
-## 🔒 Security Rules (Cloud Firestore)
+## 🔒 Security & Privacy
 
-To ensure users can only access their own private chat logs, publish these security rules in the Firebase Console:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/messages/{messageId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    match /{document=**} {
-      allow read, write: if false;
-    }
-  }
-}
-```
+* **Firestore Privacy**: User messages are partitioned under `users/{userId}/messages` with Firestore rules ensuring each user can only read and write their own data.
+* **API Key Safety (BYOK)**: User Gemini API keys are saved strictly in the visitor's local browser storage (`localStorage`). Keys are sent directly from the browser to Google's HTTPS API endpoint and are never stored in Firestore or transmitted to any third party.
 
 ---
 
@@ -150,7 +148,7 @@ The repository includes a GitHub Actions workflow (`.github/workflows/deploy.yml
 
 1. **Add Repository Secrets**:
    * Navigate to **Settings** > **Secrets and variables** > **Actions** on GitHub.
-   * Add the 6 secrets matching your `.env.local` keys:
+   * Add the secrets matching your Firebase environment keys:
      - `VITE_FIREBASE_API_KEY`
      - `VITE_FIREBASE_AUTH_DOMAIN`
      - `VITE_FIREBASE_PROJECT_ID`
