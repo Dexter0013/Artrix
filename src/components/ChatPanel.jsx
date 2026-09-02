@@ -5,6 +5,22 @@ import { useAuth } from '../context/AuthContext';
 import { sendMessage, subscribeToMessages, clearHistory } from '../firebase/chat';
 import { useAI } from '../ai/useAI';
 import { speakText, speakSegments, stopSpeech, unlockAudio } from '../ai/tts';
+import { useVoiceInput } from '../ai/useVoiceInput';
+import {
+  Volume2,
+  VolumeX,
+  Key,
+  Trash2,
+  LogOut,
+  Mic,
+  Square,
+  Send,
+  Loader2,
+  X,
+  Sparkles,
+  WifiOff,
+  ShieldCheck,
+} from 'lucide-react';
 
 export function parseEmotionalSegments(rawText) {
   if (!rawText) return [];
@@ -65,6 +81,74 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   });
   const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef                 = useRef(null);
+
+  // ── Voice Input & Coarse Pointer Detection ──────────────────────────────
+  const [isCoarsePointer, setIsCoarsePointer] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(pointer: coarse)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(pointer: coarse)');
+    const onChange = (e) => setIsCoarsePointer(e.matches);
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    } else if (mql.addListener) {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+  }, []);
+
+  const initialInputRef = useRef('');
+
+  const handleTranscript = useCallback((text) => {
+    const base = initialInputRef.current ? initialInputRef.current.trim() : '';
+    if (text) {
+      setInput(base ? `${base} ${text}` : text);
+    }
+  }, []);
+
+  const {
+    isListening: isMicListening,
+    isSupported: isMicSupported,
+    errorMessage: micErrorMessage,
+    setErrorMessage: setMicErrorMessage,
+    start: startMic,
+    stop: stopMic,
+  } = useVoiceInput(handleTranscript);
+
+  const handleStartListeningSession = useCallback(() => {
+    initialInputRef.current = input;
+    startMic();
+  }, [input, startMic]);
+
+  const handleMicClick = useCallback((e) => {
+    if (isCoarsePointer) return;
+    if (isMicListening) {
+      stopMic();
+    } else {
+      handleStartListeningSession();
+    }
+  }, [isCoarsePointer, isMicListening, stopMic, handleStartListeningSession]);
+
+  const handleMicPointerDown = useCallback((e) => {
+    if (!isCoarsePointer) return;
+    e.preventDefault();
+    handleStartListeningSession();
+  }, [isCoarsePointer, handleStartListeningSession]);
+
+  const handleMicPointerUp = useCallback((e) => {
+    if (!isCoarsePointer) return;
+    e.preventDefault();
+    stopMic();
+  }, [isCoarsePointer, stopMic]);
+
+  const handleMicPointerLeave = useCallback((e) => {
+    if (!isCoarsePointer) return;
+    stopMic();
+  }, [isCoarsePointer, stopMic]);
 
   // ── Rate-limiting / in-flight guards ─────────────────────────────────────
   // `inFlightRef` is a synchronous mutex — set to true *before* the first
@@ -376,48 +460,52 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               isSpeaking
                 ? 'Speaking… (Click to stop)'
                 : voiceEnabled
-                ? 'Voice Enabled (Kokoro TTS af_heart) - Click to Mute'
-                : 'Voice Muted - Click to Enable'
+                ? 'Voice Enabled (Click to Mute)'
+                : 'Voice Muted (Click to Enable)'
             }
-            style={{
-              ...styles.iconBtn,
-              background: isSpeaking
-                ? 'rgba(62, 207, 207, 0.25)'
+            className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer ${
+              isSpeaking
+                ? 'bg-cyan-500/25 border border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(62,207,207,0.5)] animate-pulse'
                 : voiceEnabled
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'none',
-              boxShadow: isSpeaking ? '0 0 12px rgba(62, 207, 207, 0.6)' : 'none',
-              border: isSpeaking ? '1px solid #3ECFCF' : 'none',
-            }}
+                ? 'bg-white/10 hover:bg-white/20 text-white/90 border border-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-white/40 border border-white/5'
+            }`}
             onClick={handleToggleVoice}
           >
-            {isSpeaking ? '🗣️' : voiceEnabled ? '🔊' : '🔇'}
+            {isSpeaking ? (
+              <Volume2 className="w-4 h-4 text-cyan-300 animate-bounce" />
+            ) : voiceEnabled ? (
+              <Volume2 className="w-4 h-4 text-white/90" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-white/40" />
+            )}
           </button>
 
           {hasKey && (
             <button
               id="btn-change-api-key"
               title="Change or Clear Gemini API Key"
-              style={styles.iconBtn}
+              className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
               onClick={handleChangeKey}
             >
-              🔑
+              <Key className="w-4 h-4" />
             </button>
           )}
           <button
             id="btn-clear-chat"
             title="Clear history"
-            style={styles.iconBtn}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-rose-500/20 hover:border-rose-500/30 text-white/80 hover:text-rose-300 border border-white/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
             onClick={handleClear}
           >
-            🗑️
+            <Trash2 className="w-4 h-4" />
           </button>
           <button
             id="btn-sign-out"
-            style={styles.signOutBtn}
+            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/15 text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5"
             onClick={handleSignOut}
           >
-            Sign out
+            <LogOut className="w-3.5 h-3.5" />
+            <span>Sign out</span>
           </button>
         </div>
       </div>
@@ -426,7 +514,7 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       {!hasKey ? (
         <div style={styles.keyPromptContainer}>
           <div style={styles.keyPromptCard}>
-            <div style={styles.keyPromptIcon}>🔑</div>
+            <Key className="w-10 h-10 text-cyan-400 mb-1" />
             <h3 style={styles.keyPromptTitle}>Connect Gemini API Key</h3>
             <p style={styles.keyPromptDesc}>
               To begin chatting with Artrix, please enter your free Google Gemini API key. It is saved securely in your browser.
@@ -448,7 +536,7 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               <button
                 id="btn-save-gemini-key"
                 onClick={handleSaveKey}
-                style={styles.saveKeyBtn}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-400 hover:from-indigo-600 hover:to-cyan-500 text-white font-semibold text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-md flex-shrink-0"
               >
                 Connect
               </button>
@@ -475,7 +563,7 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             {/* Offline banner */}
             {!isOnline && (
               <div style={styles.offlineBanner} role="alert" aria-live="assertive">
-                <span>⚡</span>
+                <WifiOff className="w-4 h-4 flex-shrink-0" />
                 <span>No internet connection — messages will resume once you're back online.</span>
               </div>
             )}
@@ -485,21 +573,43 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               <div style={styles.firestoreNotice} role="alert">
                 <span>⚠️ {firestoreError}</span>
                 <button
-                  style={styles.dismissBtn}
+                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center"
                   onClick={() => setFirestoreError('')}
                   aria-label="Dismiss"
-                >✕</button>
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Mic error notice */}
+            {micErrorMessage && (
+              <div style={styles.micErrorNotice} role="alert">
+                <div className="flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span>{micErrorMessage}</span>
+                </div>
+                <button
+                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center"
+                  onClick={() => setMicErrorMessage('')}
+                  aria-label="Dismiss microphone error"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
 
             {messages.length === 0 && (
-
               <div style={styles.empty}>
-                <span style={styles.emptyIcon}>✨</span>
+                <Sparkles className="w-8 h-8 text-cyan-400 mb-1 animate-pulse" />
                 <p style={styles.emptyTitle}>Chat with Artrix</p>
                 <p style={styles.emptySub}>
                   Powered by Google {activeModel} • Natural Neural Voice
                 </p>
+                <div className="flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>End-to-End Encrypted &amp; Secure Session</span>
+                </div>
               </div>
             )}
             {messages.map((msg) => (
@@ -517,10 +627,10 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
                   {msg.role === 'assistant' && (
                     <button
                       title="Play speech (Natural Voice)"
-                      style={styles.speakMsgBtn}
+                      className="p-1 rounded-md text-white/50 hover:text-cyan-300 hover:bg-white/10 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center"
                       onClick={() => handleSpeakMessage(msg.text, msg.rawText)}
                     >
-                      🔊
+                      <Volume2 className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
@@ -549,7 +659,13 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             <textarea
               id="chat-input"
               style={styles.textarea}
-              placeholder={isGenerating ? 'Thinking…' : 'Enter your thoughts…'}
+              placeholder={
+                isMicListening
+                  ? 'Listening to speech…'
+                  : isGenerating
+                  ? 'Thinking…'
+                  : 'Enter your thoughts…'
+              }
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -559,18 +675,68 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               rows={1}
               disabled={sending || isGenerating || !isOnline}
             />
+            {isMicSupported && (
+              <button
+                id="btn-mic"
+                title={
+                  isCoarsePointer
+                    ? isMicListening ? 'Listening… (Release to finish)' : 'Press & hold to speak'
+                    : isMicListening ? 'Listening… (Click to stop)' : 'Click to speak'
+                }
+                className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none touch-none border ${
+                  isMicListening
+                    ? 'bg-rose-500/30 border-rose-500 text-rose-400 shadow-[0_0_16px_rgba(244,63,94,0.6)] animate-pulse'
+                    : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/15'
+                } ${sending || isGenerating || !isOnline ? 'opacity-40 cursor-not-allowed' : ''}`}
+                onClick={handleMicClick}
+                onPointerDown={handleMicPointerDown}
+                onPointerUp={handleMicPointerUp}
+                onPointerLeave={handleMicPointerLeave}
+                onPointerCancel={handleMicPointerLeave}
+                onTouchStart={(e) => {
+                  if (isCoarsePointer) {
+                    e.preventDefault();
+                    handleStartListeningSession();
+                  }
+                }}
+                onTouchEnd={(e) => {
+                  if (isCoarsePointer) {
+                    e.preventDefault();
+                    stopMic();
+                  }
+                }}
+                onTouchCancel={() => {
+                  if (isCoarsePointer) {
+                    stopMic();
+                  }
+                }}
+                disabled={sending || isGenerating || !isOnline}
+              >
+                {isMicListening ? (
+                  <Square className="w-4 h-4 fill-rose-500 text-rose-500" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
+              </button>
+            )}
             <button
               id="btn-send"
-              style={{
-                ...styles.sendBtn,
-                opacity: sending || isGenerating || !input.trim() || !isOnline ? 0.5 : 1,
-                cursor: sending || isGenerating || !input.trim() || !isOnline ? 'not-allowed' : 'pointer',
-              }}
+              className={`w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-500 to-cyan-400 text-white flex items-center justify-center transition-all duration-200 shadow-md ${
+                sending || isGenerating || !input.trim() || !isOnline
+                  ? 'opacity-40 cursor-not-allowed shadow-none'
+                  : 'hover:scale-105 hover:shadow-cyan-500/25 active:scale-95 cursor-pointer'
+              }`}
               onClick={handleSend}
               disabled={sending || isGenerating || !input.trim() || !isOnline}
               title={!isOnline ? 'No internet connection' : isGenerating ? 'Generating response…' : 'Send message'}
             >
-              {!isOnline ? '📵' : isGenerating ? '…' : sending ? '…' : '➔'}
+              {sending || isGenerating ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : !isOnline ? (
+                <WifiOff className="w-5 h-5" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </button>
           </div>
         </>
@@ -906,5 +1072,36 @@ const styles = {
     padding: '0 2px',
     flexShrink: 0,
     opacity: 0.8,
+  },
+  micBtn: {
+    border: 'none',
+    borderRadius: '12px',
+    color: '#fff',
+    fontSize: '18px',
+    width: '44px',
+    height: '44px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    transition: 'all 0.15s ease',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    WebkitTouchCallout: 'none',
+  },
+  micErrorNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    background: 'rgba(255, 107, 107, 0.12)',
+    border: '1px solid rgba(255, 107, 107, 0.35)',
+    color: '#FF6B6B',
+    fontSize: '12px',
+    fontWeight: '500',
+    flexShrink: 0,
   },
 };

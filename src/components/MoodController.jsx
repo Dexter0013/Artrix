@@ -1,10 +1,12 @@
 import React from 'react';
+import { Sparkles, Smile, Zap, HelpCircle, Flame } from 'lucide-react';
 
 const MOOD_PRESETS = [
   {
     id: 'idle',
     label: 'Idle',
-    icon: '🟢',
+    Icon: Sparkles,
+    iconColor: 'text-emerald-400',
     description: 'Normal / Idle State',
     stateName: 'Idle',
     actionType: 'idle',
@@ -12,7 +14,8 @@ const MOOD_PRESETS = [
   {
     id: 'smile',
     label: 'Smile',
-    icon: '😊',
+    Icon: Smile,
+    iconColor: 'text-amber-400',
     description: 'Smile Expression',
     stateName: 'Smile',
     actionType: 'trigger_smile',
@@ -20,7 +23,8 @@ const MOOD_PRESETS = [
   {
     id: 'surprise',
     label: 'Surprise',
-    icon: '⚡',
+    Icon: Zap,
+    iconColor: 'text-cyan-400',
     description: 'Surprise / Thinking',
     stateName: 'Surprise',
     actionType: 'trigger_surprise',
@@ -28,7 +32,8 @@ const MOOD_PRESETS = [
   {
     id: 'confused',
     label: 'Confused',
-    icon: '❓',
+    Icon: HelpCircle,
+    iconColor: 'text-purple-400',
     description: 'Confused / Query',
     stateName: 'Confused',
     actionType: 'trigger_confusion',
@@ -36,7 +41,8 @@ const MOOD_PRESETS = [
   {
     id: 'angry',
     label: 'Angry',
-    icon: '😠',
+    Icon: Flame,
+    iconColor: 'text-rose-400',
     description: 'Angry / Alert',
     stateName: 'Angry',
     actionType: 'trigger_angry',
@@ -54,16 +60,18 @@ export default function MoodController({ onTriggerMood, activeState }) {
       <div style={styles.grid}>
         {MOOD_PRESETS.map((mood) => {
           const isSelected = activeState === mood.stateName;
+          const IconComponent = mood.Icon;
           return (
             <button
               key={mood.id}
               onClick={() => onTriggerMood(mood)}
-              style={{
-                ...styles.moodBtn,
-                ...(isSelected ? styles.moodBtnActive : {}),
-              }}
+              className={`p-3.5 rounded-xl border flex flex-col items-start gap-1.5 transition-all duration-200 cursor-pointer text-left ${
+                isSelected
+                  ? 'bg-emerald-950/40 border-emerald-400/80 shadow-[0_0_14px_rgba(140,179,116,0.3)] scale-[1.02]'
+                  : 'bg-emerald-950/20 border-emerald-900/40 hover:bg-emerald-950/35 hover:border-emerald-700/50'
+              }`}
             >
-              <span style={styles.btnIcon}>{mood.icon}</span>
+              <IconComponent className={`w-5 h-5 ${mood.iconColor}`} />
               <span style={styles.btnLabel}>{mood.label}</span>
               <span style={styles.btnDesc}>{mood.description}</span>
             </button>
@@ -114,28 +122,6 @@ const styles = {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '10px',
-  },
-  moodBtn: {
-    background: '#14221a',
-    color: 'var(--text)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    padding: '14px',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '5px',
-    cursor: 'pointer',
-    transition: 'all 0.15s ease',
-    textAlign: 'left',
-  },
-  moodBtnActive: {
-    background: 'var(--panel-light)',
-    border: '1px solid var(--accent)',
-    boxShadow: '0 0 12px rgba(140, 179, 116, 0.25)',
-  },
-  btnIcon: {
-    fontSize: '20px',
   },
   btnLabel: {
     fontSize: '13px',

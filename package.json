@@ -10,9 +10,12 @@
   },
   "dependencies": {
     "@rive-app/react-canvas": "^4.11.5",
+    "@tailwindcss/vite": "^4.3.3",
     "firebase": "^12.18.0",
+    "lucide-react": "^1.39.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.1.1",

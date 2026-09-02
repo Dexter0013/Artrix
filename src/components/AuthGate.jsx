@@ -3,6 +3,7 @@
 // Renders children (the main app) when they are logged in.
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { Loader2 } from 'lucide-react';
 
 const AVATAR_IMG = `${import.meta.env.BASE_URL || './'}Artrix1.png`;
 const LOGIN_BG   = `${import.meta.env.BASE_URL || './'}Loginback.jpg`;
@@ -53,16 +54,18 @@ export default function AuthGate({ children }) {
 
         <button
           id="btn-google-signin"
-          style={{
-            ...styles.googleBtn,
-            opacity: signingIn ? 0.7 : 1,
-            cursor:  signingIn ? 'not-allowed' : 'pointer',
-          }}
+          className={`w-full py-3.5 px-5 bg-white text-gray-900 font-semibold rounded-xl text-base flex items-center justify-center gap-3 transition-all duration-200 shadow-lg ${
+            signingIn ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-100 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] cursor-pointer'
+          }`}
           onClick={handleGoogleSignIn}
           disabled={signingIn}
         >
-          <GoogleIcon />
-          {signingIn ? 'Signing in…' : 'Continue with Google'}
+          {signingIn ? (
+            <Loader2 className="w-5 h-5 animate-spin text-gray-600" />
+          ) : (
+            <GoogleIcon />
+          )}
+          <span>{signingIn ? 'Signing in…' : 'Continue with Google'}</span>
         </button>
 
         <p style={styles.legal}>
