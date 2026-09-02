@@ -15,6 +15,7 @@ An interactive AI Assistant web application featuring a real-time animated avata
 - **Interactive 2D Avatar** — Rive animated Deer-Girl rig (`public/20673-38905-deer-girl.riv`) with 5 real-time facial expression states (`Idle`, `Smile`, `Surprise`, `Confused`, `Angry`).
 - **Conversational Intelligence** — Powered by Google Gemini 3 Flash models with multi-turn memory context across past turns.
 - **Continuous Voice Input (STT)** — Native browser speech recognition (Web Speech API) with zero-latency streaming into the input field:
+  - **Screen-Dependent Defaults**: Microphone is ON by default on larger (desktop) screens, and OFF by default on smaller (mobile) screens.
   - **Auto-Pause While Assistant Speaks**: Microphone turns off while audio plays out loud to prevent feedback loops, resuming automatically 100ms after speech ends.
   - **4-Second Pause Auto-Send (Desktop)**: On desktop screens, automatically sends text after a 4-second pause with a live countdown indicator.
   - **Smart Merge Algorithm**: Deduplicates mobile WebKit speech streams across session restarts.

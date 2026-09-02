@@ -140,8 +140,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef                 = useRef(null);
 
-  // ── Voice Input (Always-On by default, tap to toggle on all screen sizes) ─
-  const [isMicEnabled, setIsMicEnabled] = useState(true);
+  // ── Voice Input (Default ON for larger screens, default OFF for smaller screens) ─
+  const [isMicEnabled, setIsMicEnabled] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return true;
+    const isSmallScreen = window.matchMedia('(max-width: 800px), (pointer: coarse)').matches;
+    return !isSmallScreen;
+  });
   const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => {
     isMicEnabledRef.current = isMicEnabled;
