@@ -13,6 +13,7 @@ import {
   Trash2,
   LogOut,
   Mic,
+  MicOff,
   Square,
   Send,
   Loader2,
@@ -70,6 +71,17 @@ export function parseEmotionalSegments(rawText) {
 
 export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, onTyping }) {
   const { currentUser, signOut } = useAuth();
+
+  // Gemini AI hook
+  const {
+    hasKey,
+    saveApiKey,
+    clearApiKey,
+    activeModel,
+    generate,
+    isGenerating,
+  } = useAI();
+
   const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState('');
   const [sending, setSending]     = useState(false);
@@ -82,24 +94,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef                 = useRef(null);
 
-  // ── Voice Input & Coarse Pointer Detection ──────────────────────────────
-  const [isCoarsePointer, setIsCoarsePointer] = useState(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return false;
-    return window.matchMedia('(pointer: coarse)').matches;
-  });
-
+  // ── Voice Input (Always-On by default, tap to toggle on all screen sizes) ─
+  const [isMicEnabled, setIsMicEnabled] = useState(true);
+  const isMicEnabledRef = useRef(isMicEnabled);
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
-    const mql = window.matchMedia('(pointer: coarse)');
-    const onChange = (e) => setIsCoarsePointer(e.matches);
-    if (mql.addEventListener) {
-      mql.addEventListener('change', onChange);
-      return () => mql.removeEventListener('change', onChange);
-    } else if (mql.addListener) {
-      mql.addListener(onChange);
-      return () => mql.removeListener(onChange);
-    }
-  }, []);
+    isMicEnabledRef.current = isMicEnabled;
+  }, [isMicEnabled]);
 
   const initialInputRef = useRef('');
 
@@ -119,36 +119,41 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     stop: stopMic,
   } = useVoiceInput(handleTranscript);
 
-  const handleStartListeningSession = useCallback(() => {
-    initialInputRef.current = input;
-    startMic();
-  }, [input, startMic]);
+  // Auto-start microphone on mount if supported and enabled
+  useEffect(() => {
+    if (!isMicSupported || !hasKey) return;
+    if (isMicEnabled && !isMicListening) {
+      initialInputRef.current = input;
+      startMic();
+    }
+  }, [isMicSupported, hasKey]);
 
-  const handleMicClick = useCallback((e) => {
-    if (isCoarsePointer) return;
-    if (isMicListening) {
+  // Keep microphone active continuously when enabled by user
+  useEffect(() => {
+    if (!isMicSupported || !hasKey) return;
+    if (isMicEnabled && !isMicListening && !sending && !isGenerating && !micErrorMessage) {
+      const timer = setTimeout(() => {
+        if (isMicEnabledRef.current && !sending && !isGenerating) {
+          initialInputRef.current = input;
+          startMic();
+        }
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [isMicListening, isMicEnabled, isMicSupported, hasKey, sending, isGenerating, micErrorMessage]);
+
+  const handleMicToggle = useCallback(() => {
+    if (isMicListening || isMicEnabled) {
+      setIsMicEnabled(false);
+      isMicEnabledRef.current = false;
       stopMic();
     } else {
-      handleStartListeningSession();
+      setIsMicEnabled(true);
+      isMicEnabledRef.current = true;
+      initialInputRef.current = input;
+      startMic();
     }
-  }, [isCoarsePointer, isMicListening, stopMic, handleStartListeningSession]);
-
-  const handleMicPointerDown = useCallback((e) => {
-    if (!isCoarsePointer) return;
-    e.preventDefault();
-    handleStartListeningSession();
-  }, [isCoarsePointer, handleStartListeningSession]);
-
-  const handleMicPointerUp = useCallback((e) => {
-    if (!isCoarsePointer) return;
-    e.preventDefault();
-    stopMic();
-  }, [isCoarsePointer, stopMic]);
-
-  const handleMicPointerLeave = useCallback((e) => {
-    if (!isCoarsePointer) return;
-    stopMic();
-  }, [isCoarsePointer, stopMic]);
+  }, [isMicListening, isMicEnabled, input, stopMic, startMic]);
 
   // ── Rate-limiting / in-flight guards ─────────────────────────────────────
   // `inFlightRef` is a synchronous mutex — set to true *before* the first
@@ -173,16 +178,6 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       window.removeEventListener('offline', goOffline);
     };
   }, []);
-
-  // Gemini AI hook
-  const {
-    hasKey,
-    saveApiKey,
-    clearApiKey,
-    activeModel,
-    generate,
-    isGenerating,
-  } = useAI();
 
   // Subscribe to real-time Firestore messages
   useEffect(() => {
@@ -679,43 +674,22 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               <button
                 id="btn-mic"
                 title={
-                  isCoarsePointer
-                    ? isMicListening ? 'Listening… (Release to finish)' : 'Press & hold to speak'
-                    : isMicListening ? 'Listening… (Click to stop)' : 'Click to speak'
+                  isMicListening || isMicEnabled
+                    ? 'Voice Input ON (Click to turn off)'
+                    : 'Voice Input OFF (Click to turn on)'
                 }
-                className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none touch-none border ${
-                  isMicListening
-                    ? 'bg-rose-500/30 border-rose-500 text-rose-400 shadow-[0_0_16px_rgba(244,63,94,0.6)] animate-pulse'
-                    : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border-white/15'
+                className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none border ${
+                  isMicListening || isMicEnabled
+                    ? 'bg-rose-500/25 border-rose-400 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
+                    : 'bg-white/5 hover:bg-white/10 text-white/40 border-white/10'
                 } ${sending || isGenerating || !isOnline ? 'opacity-40 cursor-not-allowed' : ''}`}
-                onClick={handleMicClick}
-                onPointerDown={handleMicPointerDown}
-                onPointerUp={handleMicPointerUp}
-                onPointerLeave={handleMicPointerLeave}
-                onPointerCancel={handleMicPointerLeave}
-                onTouchStart={(e) => {
-                  if (isCoarsePointer) {
-                    e.preventDefault();
-                    handleStartListeningSession();
-                  }
-                }}
-                onTouchEnd={(e) => {
-                  if (isCoarsePointer) {
-                    e.preventDefault();
-                    stopMic();
-                  }
-                }}
-                onTouchCancel={() => {
-                  if (isCoarsePointer) {
-                    stopMic();
-                  }
-                }}
+                onClick={handleMicToggle}
                 disabled={sending || isGenerating || !isOnline}
               >
-                {isMicListening ? (
-                  <Square className="w-4 h-4 fill-rose-500 text-rose-500" />
+                {isMicListening || isMicEnabled ? (
+                  <Mic className="w-5 h-5 text-rose-400 animate-pulse" />
                 ) : (
-                  <Mic className="w-5 h-5" />
+                  <MicOff className="w-5 h-5 text-white/40" />
                 )}
               </button>
             )}
