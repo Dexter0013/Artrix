@@ -21,6 +21,8 @@ import {
   Sparkles,
   WifiOff,
   ShieldCheck,
+  Zap,
+  AlertTriangle,
 } from 'lucide-react';
 
 export function mergeTranscripts(accumulated, text) {
@@ -248,6 +250,30 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     };
   }, []);
 
+  // ── Desktop 4-second pause auto-send ─────────────────────────────────────
+  const [isDesktopScreen, setIsDesktopScreen] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return (
+      window.matchMedia('(pointer: fine) and (min-width: 801px)').matches ||
+      !window.matchMedia('(pointer: coarse)').matches
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(pointer: fine) and (min-width: 801px)');
+    const onChange = (e) => setIsDesktopScreen(e.matches);
+    if (mql.addEventListener) {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    } else if (mql.addListener) {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+  }, []);
+
+
+
   // Subscribe to real-time Firestore messages
   useEffect(() => {
     if (!currentUser) return;
@@ -405,10 +431,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
 
     inFlightRef.current = true;
     lastSentRef.current = now;
+    stopMic();
     setInput('');
     preVoiceInputRef.current = '';
     accumulatedVoiceRef.current = '';
     lastSessionTextRef.current = '';
+    setAutoSendCountdown(0);
     setSending(true);
     unlockAudio(); // Unlock audio immediately on user click
 
@@ -478,10 +506,41 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
         'assistant'
       );
     } finally {
+      setInput('');
+      preVoiceInputRef.current = '';
+      accumulatedVoiceRef.current = '';
+      lastSessionTextRef.current = '';
+      setAutoSendCountdown(0);
       setSending(false);
       inFlightRef.current = false;
     }
-  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, currentUser, onMoodDetected, onSpeechStart, onSpeechEnd]);
+  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, currentUser, onMoodDetected, onSpeechStart, onSpeechEnd, stopMic]);
+
+  // ── Desktop 4-second pause auto-send effect ────────────────────────────────
+  const [autoSendCountdown, setAutoSendCountdown] = useState(0);
+
+  useEffect(() => {
+    if (!isDesktopScreen || !input.trim() || sending || isGenerating || !isOnline) {
+      setAutoSendCountdown(0);
+      return;
+    }
+
+    setAutoSendCountdown(4);
+    const interval = setInterval(() => {
+      setAutoSendCountdown((prev) => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
+
+    const timer = setTimeout(() => {
+      if (input.trim() && !sending && !isGenerating && isOnline) {
+        handleSend();
+      }
+    }, 4000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
+  }, [input, isDesktopScreen, sending, isGenerating, isOnline, handleSend]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -638,9 +697,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             {/* Firestore error notice */}
             {firestoreError && isOnline && (
               <div style={styles.firestoreNotice} role="alert">
-                <span>⚠️ {firestoreError}</span>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span className="break-words leading-tight">{firestoreError}</span>
+                </div>
                 <button
-                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center"
+                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center flex-shrink-0"
                   onClick={() => setFirestoreError('')}
                   aria-label="Dismiss"
                 >
@@ -652,12 +714,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             {/* Mic error notice */}
             {micErrorMessage && (
               <div style={styles.micErrorNotice} role="alert">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <Mic className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                  <span>{micErrorMessage}</span>
+                  <span className="break-words leading-tight">{micErrorMessage}</span>
                 </div>
                 <button
-                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center"
+                  className="p-1 rounded-md hover:bg-rose-500/20 text-rose-400 transition-colors duration-150 cursor-pointer border-none bg-transparent flex items-center justify-center flex-shrink-0"
                   onClick={() => setMicErrorMessage('')}
                   aria-label="Dismiss microphone error"
                 >
@@ -721,6 +783,17 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             <div ref={bottomRef} />
           </div>
 
+          {/* Desktop Auto-Send Notice */}
+          {isDesktopScreen && autoSendCountdown > 0 && (
+            <div className="flex items-center justify-between px-3 py-1.5 text-xs bg-cyan-500/10 border border-cyan-500/25 text-cyan-300 rounded-xl mx-4 mb-2 animate-pulse">
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Auto-sending after 4s pause…</span>
+              </div>
+              <span className="font-bold text-cyan-400">{autoSendCountdown}s</span>
+            </div>
+          )}
+
           {/* Input Bar */}
           <div style={styles.inputRow}>
             <textarea
@@ -728,9 +801,13 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               style={styles.textarea}
               placeholder={
                 isMicListening
-                  ? 'Listening to speech…'
+                  ? autoSendCountdown > 0
+                    ? `Listening… (Auto-sending in ${autoSendCountdown}s)`
+                    : 'Listening to speech…'
                   : isGenerating
                   ? 'Thinking…'
+                  : autoSendCountdown > 0
+                  ? `Auto-sending in ${autoSendCountdown}s…`
                   : 'Enter your thoughts…'
               }
               value={input}
@@ -819,34 +896,45 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
+    minWidth: 0,
+    flex: 1,
   },
   avatar: {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
     objectFit: 'cover',
+    flexShrink: 0,
   },
   nameBlock: {
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
+    minWidth: 0,
   },
   userName: {
     color: '#fff',
     fontSize: '14px',
     fontWeight: '600',
     lineHeight: 1.2,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   modelBadge: {
     fontSize: '11px',
     color: '#3ECFCF',
     fontWeight: '600',
     letterSpacing: '0.02em',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
+    gap: '6px',
+    flexShrink: 0,
   },
   iconBtn: {
     background: 'none',
@@ -979,6 +1067,9 @@ const styles = {
     padding: '10px 14px',
     borderRadius: '16px',
     lineHeight: '1.5',
+    boxSizing: 'border-box',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   },
   bubbleHeader: {
     display: 'flex',
@@ -1041,6 +1132,8 @@ const styles = {
     margin: 0,
     fontSize: '14px',
     whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    overflowWrap: 'anywhere',
   },
   inputRow: {
     display: 'flex',
@@ -1052,6 +1145,7 @@ const styles = {
   },
   textarea: {
     flex: 1,
+    minWidth: 0,
     resize: 'none',
     background: 'rgba(255,255,255,0.07)',
     border: '1px solid rgba(255,255,255,0.12)',
