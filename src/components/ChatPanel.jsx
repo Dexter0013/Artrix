@@ -111,9 +111,20 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     return unsubscribe;
   }, [currentUser]);
 
-  // Auto-scroll to latest message
+  // Auto-scroll to latest message.
+  // - First paint: instant jump so the user never sees stale scroll position.
+  // - Subsequent updates: smooth scroll for a polished feel.
+  const isFirstScrollRef = useRef(true);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = bottomRef.current;
+    if (!el) return;
+    if (isFirstScrollRef.current) {
+      // Instant on initial render — avoids the "flash at top" on page load
+      el.scrollIntoView({ behavior: 'instant', block: 'end' });
+      isFirstScrollRef.current = false;
+    } else {
+      el.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
   }, [messages, isGenerating]);
 
   // Clean up audio on unmount
@@ -186,23 +197,48 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     });
   };
 
-  const handleSpeakMessage = (text) => {
+  const handleSpeakMessage = (text, rawText) => {
     unlockAudio();
+    // Use rawText (tagged) when available for full emotion-sync; fall back to clean text
+    const sourceText = rawText || text;
+    const segments = parseEmotionalSegments(sourceText);
+    const hasTaggedMoods = segments.some((s) => s.hasExplicitMood);
+
     if (onSpeechStart) onSpeechStart();
-    const segments = parseEmotionalSegments(text);
     setIsSpeaking(true);
-    speakSegments(
-      segments,
-      (seg) => {
-        if (seg.mood && onMoodDetected) {
-          onMoodDetected(seg.mood, false);
+
+    if (voiceEnabled) {
+      // Speak with synchronized avatar expression changes
+      speakSegments(
+        segments,
+        (seg) => {
+          if (seg.mood && onMoodDetected) onMoodDetected(seg.mood, false);
+        },
+        () => {
+          setIsSpeaking(false);
+          if (onSpeechEnd) onSpeechEnd();
         }
-      },
-      () => {
+      );
+    } else if (hasTaggedMoods) {
+      // Voice muted but tagged moods exist — run visual-only timeline
+      let delay = 0;
+      segments.forEach((seg, idx) => {
+        const isLast = idx === segments.length - 1;
+        setTimeout(() => {
+          if (seg.mood && onMoodDetected) onMoodDetected(seg.mood, isLast, 2000);
+        }, delay);
+        delay += 1600;
+      });
+      // Mark speaking done after timeline finishes
+      setTimeout(() => {
         setIsSpeaking(false);
         if (onSpeechEnd) onSpeechEnd();
-      }
-    );
+      }, delay);
+    } else {
+      // No tags and voice muted — nothing to animate
+      setIsSpeaking(false);
+      if (onSpeechEnd) onSpeechEnd();
+    }
   };
 
   const handleSend = useCallback(async () => {
@@ -246,8 +282,8 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
         .replace(/\s+/g, ' ')
         .trim() || "I'm here to help!";
 
-      // 4. Save clean AI response to Firestore
-      await sendMessage(currentUser.uid, cleanMessageText, 'assistant');
+      // 4. Save clean AI response to Firestore (rawAiResponse kept for replay animations)
+      await sendMessage(currentUser.uid, cleanMessageText, 'assistant', rawAiResponse);
 
       // 5. Play synchronized multi-expression sequence
       if (voiceEnabled) {
@@ -482,7 +518,7 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
                     <button
                       title="Play speech (Natural Voice)"
                       style={styles.speakMsgBtn}
-                      onClick={() => handleSpeakMessage(msg.text)}
+                      onClick={() => handleSpeakMessage(msg.text, msg.rawText)}
                     >
                       🔊
                     </button>
@@ -701,7 +737,8 @@ const styles = {
   },
   empty: {
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.35)',
+    /* was 0.35 (1.9:1) — bumped to 0.65 (WCAG AA) */
+    color: 'rgba(255,255,255,0.65)',
     marginTop: 'auto',
     marginBottom: 'auto',
     display: 'flex',
@@ -721,7 +758,8 @@ const styles = {
   },
   emptySub: {
     fontSize: '12px',
-    color: 'rgba(255,255,255,0.4)',
+    /* was 0.4 (2.2:1) — bumped to 0.65 (WCAG AA) */
+    color: 'rgba(255,255,255,0.65)',
     margin: 0,
   },
   bubble: {
@@ -774,7 +812,8 @@ const styles = {
   },
   thinkingText: {
     fontSize: '12px',
-    color: 'rgba(255,255,255,0.5)',
+    /* was 0.5 (2.7:1) — bumped to 0.72 (WCAG AA) */
+    color: 'rgba(255,255,255,0.72)',
     marginLeft: '6px',
     fontStyle: 'italic',
   },

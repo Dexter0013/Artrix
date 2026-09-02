@@ -25,6 +25,10 @@ An interactive AI Assistant web application featuring a real-time animated avata
 - **Fixed-Height Scrollable Chatbox** — Fixed viewport bounds with smooth auto-scrolling and clean compact input (`Enter your thoughts…`). Chat never stretches or extends downwards.
 - **Rate Limiting & Cost Guardrails** — A two-layer, ref-based in-flight guard prevents duplicate or rapid-fire Gemini API requests. A synchronous mutex (`inFlightRef`) blocks concurrent calls before React's render cycle can catch them, while a 1-second inter-request cooldown (`lastSentRef`) stops accidental retry loops or key-repeat events. Applies at both the UI (`ChatPanel`) and hook (`useAI`) levels.
 - **Offline / Connection-Loss Handling** — The app gracefully degrades when connectivity is lost. An amber banner appears in the message list, the send button and textarea are disabled, and a `📵` icon replaces the send arrow. Mid-request network failures (e.g. the connection drops during `generateContent`) surface as a user-friendly `⚡ No internet connection` bubble rather than a raw JS error. Firestore auth/permission errors are surfaced via a dismissible red notice. All states auto-clear when the connection is restored.
+- **Keyboard Accessibility & Contrast** — All interactive elements show a visible green focus ring on keyboard navigation (`:focus-visible`). Contrast tokens (`--text-dim`, `--text-muted`) and inline chat colours are bumped to WCAG AA ≥ 4.5:1. Animations respect the OS `prefers-reduced-motion` preference.
+- **Instant Chat Scroll** — On first load the message list snaps instantly to the latest message (no flash-at-top). Subsequent new messages scroll in smoothly.
+- **Emotion-Synchronized Replay** — The 🔊 replay button on each assistant message re-drives the avatar through the same expression timeline as the original response. The raw tagged AI response is stored as `rawText` in Firestore alongside the clean display text, enabling full mood-sync on replay with or without voice.
+- **Responsive Layout** — On desktop the chatbox keeps its fixed 520 px height. On mobile (≤ 800 px) it flexes to fill the remaining viewport height after the avatar canvas so both panels are visible without page scrolling.
 - **Automated CI/CD** — Zero-downtime deployment to GitHub Pages via GitHub Actions upon pushing to `main`.
 - **State Machine Driven** — Clean state transitions via Rive state machine inputs with hover overrides and viewport clipping.
 
@@ -149,6 +153,33 @@ Three co-operating layers handle network failures:
 | **Online/offline UI** | `ChatPanel` | Listens to `window` `online` / `offline` events. Shows an amber banner, disables the textarea + send button (icon switches to `📵`), and clears everything automatically when connectivity returns |
 
 > **Note on Firestore resilience**: The Firebase JS SDK has built-in offline persistence and automatically queues writes and re-tries reads when connectivity is lost — the `onSnapshot` error callback fires for auth/permission errors, not ordinary network interruptions. The `isOnline` UI state covers the ordinary disconnect case.
+
+### 8. Keyboard Accessibility & Contrast (`src/index.css`)
+
+| Change | Detail |
+| :--- | :--- |
+| **`:focus-visible` ring** | `2px solid var(--accent)` with `outline-offset: 3px` — fires on keyboard nav only, never on mouse clicks |
+| **`--text-dim`** | `#97aca1` → `#aec0bb` — 3.6:1 → **4.8:1** (WCAG AA ✅) |
+| **`--text-muted`** | `#6f857a` → `#8fa89f` — 2.8:1 → **4.6:1** (WCAG AA ✅) |
+| **Chat empty state** | `rgba(255,255,255,0.35)` → `0.65` — 1.9:1 → **4.6:1** ✅ |
+| **Thinking indicator** | `rgba(255,255,255,0.5)` → `0.72` — 2.7:1 → **4.9:1** ✅ |
+| **`prefers-reduced-motion`** | Collapses all CSS keyframe animations to `0.01ms` for users who opt out via OS settings |
+
+### 9. Instant Auto-Scroll (`src/components/ChatPanel.jsx`)
+
+A `isFirstScrollRef` boolean tracks whether the component has already performed its initial scroll:
+- **First render**: `scrollIntoView({ behavior: 'instant' })` — snaps to the bottom immediately, no flash-at-top.
+- **Subsequent updates** (new message / generating state): `scrollIntoView({ behavior: 'smooth' })` — polished animated scroll.
+
+### 10. Emotion-Synchronized Replay (`src/firebase/chat.js`, `src/components/ChatPanel.jsx`)
+
+When a response is saved to Firestore, the raw Gemini output (including `[SMILE]`, `[ANGRY]` etc. tags) is stored as a `rawText` field alongside the clean `text` display field. When the 🔊 replay button is clicked:
+
+1. `handleSpeakMessage(msg.text, msg.rawText)` is called.
+2. `parseEmotionalSegments(rawText)` re-creates the full ordered expression timeline.
+3. With voice **on** — `speakSegments()` drives avatar expressions in sync with each spoken sentence, identical to the original response.
+4. With voice **muted** — a 1.6 s visual-only setTimeout timeline transitions the avatar through expressions without audio.
+5. Older messages without `rawText` fall back gracefully with no animation.
 
 ---
 

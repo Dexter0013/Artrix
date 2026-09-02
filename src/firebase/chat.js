@@ -21,13 +21,15 @@ const messagesRef = (userId) =>
 /**
  * Send a chat message for a user.
  * @param {string} userId
- * @param {string} text    - Message content
+ * @param {string} text     - Clean display text (emotion tags stripped)
  * @param {'user'|'assistant'} role
+ * @param {string} [rawText] - Original AI response with emotion tags (assistant only)
  */
-export const sendMessage = (userId, text, role = 'user') =>
+export const sendMessage = (userId, text, role = 'user', rawText) =>
   addDoc(messagesRef(userId), {
     text,
     role,
+    ...(rawText ? { rawText } : {}),
     createdAt: serverTimestamp(),
   });
 

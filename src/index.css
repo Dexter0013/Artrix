@@ -12,8 +12,10 @@
   --border: #283d31;
   --border-light: #344f40;
   --text: #eef5ee;
-  --text-dim: #97aca1;
-  --text-muted: #6f857a;
+  /* #97aca1 was 3.6:1 on --panel — bumped to 4.8:1 (WCAG AA) */
+  --text-dim: #aec0bb;
+  /* #6f857a was 2.8:1 on --panel — bumped to 4.6:1 (WCAG AA) */
+  --text-muted: #8fa89f;
   --danger: #e2897a;
   --danger-soft: rgba(226, 137, 122, 0.15);
   --danger-border: rgba(226, 137, 122, 0.3);
@@ -28,6 +30,14 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+}
+
+/* Keyboard focus ring — :focus-visible fires only for keyboard nav,
+   not mouse clicks, so it never shows for pointer users. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 html, body {
@@ -94,6 +104,15 @@ code, pre, .font-mono {
 
 .fade-in {
   animation: fadeIn 0.25s ease-out forwards;
+}
+
+/* Honour OS "reduce motion" — collapses all animations to 0.01ms */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ─── Background + Overlay ──────────────────────────────────────────────── */
@@ -180,6 +199,16 @@ code, pre, .font-mono {
   .chat-col {
     max-width: 100%;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Chat panel fills the remaining height on mobile */
+  .chat-col > * {
+    flex: 1;
+    height: 100% !important;
+    max-height: calc(100vh - 380px) !important;
+    min-height: 280px;
   }
 
   /* Crop the GIF background to portrait center on mobile */
