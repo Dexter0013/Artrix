@@ -23,6 +23,8 @@ An interactive AI Assistant web application featuring a real-time animated avata
 - **Google Authentication** — Secure Google Sign-In with session persistence and user profile display (`AuthGate` & `AuthContext`).
 - **Real-Time Chat with Firestore** — Messages are synced in real-time to Cloud Firestore under private per-user collections (`users/{userId}/messages`).
 - **Fixed-Height Scrollable Chatbox** — Fixed viewport bounds with smooth auto-scrolling and clean compact input (`Enter your thoughts…`). Chat never stretches or extends downwards.
+- **Rate Limiting & Cost Guardrails** — A two-layer, ref-based in-flight guard prevents duplicate or rapid-fire Gemini API requests. A synchronous mutex (`inFlightRef`) blocks concurrent calls before React's render cycle can catch them, while a 1-second inter-request cooldown (`lastSentRef`) stops accidental retry loops or key-repeat events. Applies at both the UI (`ChatPanel`) and hook (`useAI`) levels.
+- **Offline / Connection-Loss Handling** — The app gracefully degrades when connectivity is lost. An amber banner appears in the message list, the send button and textarea are disabled, and a `📵` icon replaces the send arrow. Mid-request network failures (e.g. the connection drops during `generateContent`) surface as a user-friendly `⚡ No internet connection` bubble rather than a raw JS error. Firestore auth/permission errors are surfaced via a dismissible red notice. All states auto-clear when the connection is restored.
 - **Automated CI/CD** — Zero-downtime deployment to GitHub Pages via GitHub Actions upon pushing to `main`.
 - **State Machine Driven** — Clean state transitions via Rive state machine inputs with hover overrides and viewport clipping.
 
@@ -52,7 +54,7 @@ Artrix/
 │   ├── ai/
 │   │   ├── gemini.js            # Gemini API client with 20-turn memory context & frontier model fallback
 │   │   ├── tts.js               # Natural voice engine with speakSegments() synchronized speech queue
-│   │   └── useAI.js             # React hook for conversation state, key storage & active model version
+│   │   └── useAI.js             # React hook: conversation state, key storage, active model & in-flight guard
 │   ├── components/
 │   │   ├── AssistantStage.jsx   # Avatar viewport, canvas wrapper & aura glow
 │   │   ├── AuthGate.jsx         # Google Sign-in screen & loading spinner
@@ -122,6 +124,31 @@ The AI persona and behavioral context are strictly defined in `SYSTEM_INSTRUCTIO
 * When speech finishes (or 2 seconds after text renders in muted mode), `scheduleIdleRevert(2000)` fires.
 * If no new typing occurs for 2 seconds, Artrix smoothly and automatically returns to her natural resting **Idle** stance (`Btn_Normal = 1`).
 * Any keystroke in the chat input refreshes this timer.
+
+### 6. Rate Limiting & Cost Guardrails (`src/components/ChatPanel.jsx`, `src/ai/useAI.js`)
+
+Two lightweight `useRef`-based guards prevent accidental duplicate or rapid-fire Gemini API calls without relying on React state updates (which are asynchronous and can be bypassed by fast interactions):
+
+| Guard | Location | What it prevents |
+| :--- | :--- | :--- |
+| **In-flight mutex** (`inFlightRef`) | `ChatPanel` + `useAI` | A second call firing before the first `await` resolves — e.g. double-click, or a keyboard Enter key held down |
+| **Cooldown timestamp** (`lastSentRef`, 1 s) | `ChatPanel` | Rapid-fire retry loops or key-repeat events that fire many requests in quick succession |
+
+**Why `useRef` instead of `useState`?** Ref mutations are synchronous and happen before the next render. A state setter can only close the race window *after* a re-render, which is too late for sub-frame double-clicks.
+
+The hook-level guard in `useAI` acts as a defence-in-depth fallback: even if a future caller bypasses `ChatPanel`, `generate()` will throw a clear error (`'A request is already in progress'`) rather than silently firing a duplicate API request.
+
+### 7. Offline / Connection-Loss Handling (`src/ai/gemini.js`, `src/firebase/chat.js`, `src/components/ChatPanel.jsx`)
+
+Three co-operating layers handle network failures:
+
+| Layer | Location | What it does |
+| :--- | :--- | :--- |
+| **Network error classifier** | `gemini.js` `makeRequest()` | Catches `TypeError: Failed to fetch` (device offline / DNS failure) and re-throws a user-friendly `⚡ No internet connection…` message instead of a raw JS error |
+| **Firestore error callback** | `chat.js` `subscribeToMessages()` | Wires `onSnapshot`'s third argument to an optional `onError` callback; surfaces auth/permission errors to the UI as a dismissible red notice |
+| **Online/offline UI** | `ChatPanel` | Listens to `window` `online` / `offline` events. Shows an amber banner, disables the textarea + send button (icon switches to `📵`), and clears everything automatically when connectivity returns |
+
+> **Note on Firestore resilience**: The Firebase JS SDK has built-in offline persistence and automatically queues writes and re-tries reads when connectivity is lost — the `onSnapshot` error callback fires for auth/permission errors, not ordinary network interruptions. The `isOnline` UI state covers the ordinary disconnect case.
 
 ---
 

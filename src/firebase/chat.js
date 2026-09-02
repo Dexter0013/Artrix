@@ -34,20 +34,23 @@ export const sendMessage = (userId, text, role = 'user') =>
 /**
  * Subscribe to real-time message updates for a user.
  * Calls `callback` with an array of message objects (newest last).
+ * Calls `onError` (optional) if Firestore surfaces an error (e.g. auth/permission denied).
  * Returns an unsubscribe function.
  *
  * @param {string}   userId
  * @param {Function} callback  (messages: Array) => void
+ * @param {Function} [onError] (error: Error) => void
  */
-export const subscribeToMessages = (userId, callback) => {
+export const subscribeToMessages = (userId, callback, onError) => {
   const q = query(messagesRef(userId), orderBy('createdAt', 'asc'));
+  const handleError = onError ?? ((err) => console.warn('[Firestore] snapshot error:', err));
   return onSnapshot(q, (snapshot) => {
     const messages = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
     callback(messages);
-  });
+  }, handleError);
 };
 
 /**

@@ -192,11 +192,17 @@ export async function generateGeminiReply(userText, recentMessages = []) {
       };
     }
 
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(bodyPayload),
-    });
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyPayload),
+      });
+    } catch (networkErr) {
+      // TypeError: Failed to fetch — device is offline or DNS unreachable
+      throw new Error('⚡ No internet connection. Please check your network and try again.');
+    }
 
     return response;
   };

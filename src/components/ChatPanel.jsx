@@ -1,6 +1,6 @@
 // ─── Chat Panel ───────────────────────────────────────────────────────────────
 // Real-time Firestore-backed chat panel powered by Google Gemini 3.5 Flash & Instant Natural Voice.
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { sendMessage, subscribeToMessages, clearHistory } from '../firebase/chat';
 import { useAI } from '../ai/useAI';
@@ -66,6 +66,30 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const bottomRef                 = useRef(null);
 
+  // ── Rate-limiting / in-flight guards ─────────────────────────────────────
+  // `inFlightRef` is a synchronous mutex — set to true *before* the first
+  // await so React state lag cannot let a second call slip through.
+  const inFlightRef = useRef(false);
+  // `lastSentRef` enforces a 1-second minimum gap between consecutive sends,
+  // guarding against accidental rapid-fire retry loops or key-repeat events.
+  const lastSentRef = useRef(0);
+  const MIN_SEND_INTERVAL_MS = 1000;
+
+  // ── Offline / connection-loss handling ────────────────────────────────────
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [firestoreError, setFirestoreError] = useState('');
+
+  useEffect(() => {
+    const goOnline  = () => { setIsOnline(true);  setFirestoreError(''); };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
   // Gemini AI hook
   const {
     hasKey,
@@ -79,7 +103,11 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   // Subscribe to real-time Firestore messages
   useEffect(() => {
     if (!currentUser) return;
-    const unsubscribe = subscribeToMessages(currentUser.uid, setMessages);
+    const unsubscribe = subscribeToMessages(
+      currentUser.uid,
+      setMessages,
+      (err) => setFirestoreError(`Firestore sync error: ${err.message}`)
+    );
     return unsubscribe;
   }, [currentUser]);
 
@@ -177,9 +205,22 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     );
   };
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     const text = input.trim();
     if (!text || sending || isGenerating) return;
+
+    // Block sends while the device has no network connection
+    if (!isOnline) return;
+
+    // Synchronous in-flight mutex — blocks before any React state update
+    if (inFlightRef.current) return;
+
+    // Inter-request cooldown — prevents rapid-fire duplicate sends
+    const now = Date.now();
+    if (now - lastSentRef.current < MIN_SEND_INTERVAL_MS) return;
+
+    inFlightRef.current = true;
+    lastSentRef.current = now;
     setInput('');
     setSending(true);
     unlockAudio(); // Unlock audio immediately on user click
@@ -251,8 +292,9 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       );
     } finally {
       setSending(false);
+      inFlightRef.current = false;
     }
-  };
+  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, currentUser, onMoodDetected, onSpeechStart, onSpeechEnd]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -394,7 +436,28 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
         <>
           {/* Message List */}
           <div style={styles.messageList}>
+            {/* Offline banner */}
+            {!isOnline && (
+              <div style={styles.offlineBanner} role="alert" aria-live="assertive">
+                <span>⚡</span>
+                <span>No internet connection — messages will resume once you're back online.</span>
+              </div>
+            )}
+
+            {/* Firestore error notice */}
+            {firestoreError && isOnline && (
+              <div style={styles.firestoreNotice} role="alert">
+                <span>⚠️ {firestoreError}</span>
+                <button
+                  style={styles.dismissBtn}
+                  onClick={() => setFirestoreError('')}
+                  aria-label="Dismiss"
+                >✕</button>
+              </div>
+            )}
+
             {messages.length === 0 && (
+
               <div style={styles.empty}>
                 <span style={styles.emptyIcon}>✨</span>
                 <p style={styles.emptyTitle}>Chat with Artrix</p>
@@ -458,20 +521,20 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               }}
               onKeyDown={handleKeyDown}
               rows={1}
-              disabled={sending || isGenerating}
+              disabled={sending || isGenerating || !isOnline}
             />
             <button
               id="btn-send"
               style={{
                 ...styles.sendBtn,
-                opacity: sending || isGenerating || !input.trim() ? 0.5 : 1,
-                cursor: sending || isGenerating || !input.trim() ? 'not-allowed' : 'pointer',
+                opacity: sending || isGenerating || !input.trim() || !isOnline ? 0.5 : 1,
+                cursor: sending || isGenerating || !input.trim() || !isOnline ? 'not-allowed' : 'pointer',
               }}
               onClick={handleSend}
-              disabled={sending || isGenerating || !input.trim()}
-              title={isGenerating ? 'Generating response…' : 'Send message'}
+              disabled={sending || isGenerating || !input.trim() || !isOnline}
+              title={!isOnline ? 'No internet connection' : isGenerating ? 'Generating response…' : 'Send message'}
             >
-              {isGenerating ? '…' : sending ? '…' : '➤'}
+              {!isOnline ? '📵' : isGenerating ? '…' : sending ? '…' : '➔'}
             </button>
           </div>
         </>
@@ -767,5 +830,42 @@ const styles = {
     justifyContent: 'center',
     flexShrink: 0,
     transition: 'transform 0.15s',
+  },
+  offlineBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    background: 'rgba(255, 180, 0, 0.12)',
+    border: '1px solid rgba(255, 180, 0, 0.35)',
+    color: '#FFB400',
+    fontSize: '12px',
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  firestoreNotice: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+    padding: '7px 12px',
+    borderRadius: '10px',
+    background: 'rgba(255, 107, 107, 0.10)',
+    border: '1px solid rgba(255, 107, 107, 0.30)',
+    color: '#FF6B6B',
+    fontSize: '12px',
+    fontWeight: '500',
+    flexShrink: 0,
+  },
+  dismissBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#FF6B6B',
+    cursor: 'pointer',
+    fontSize: '12px',
+    padding: '0 2px',
+    flexShrink: 0,
+    opacity: 0.8,
   },
 };

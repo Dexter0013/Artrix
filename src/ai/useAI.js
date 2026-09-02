@@ -1,7 +1,7 @@
 // ─── useAI React Hook ────────────────────────────────────────────────────────
 // Manages Google Gemini API state, generation, and active model version resolution.
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   generateGeminiReply,
   getGeminiApiKey,
@@ -15,6 +15,10 @@ export function useAI() {
   const [activeModel, setActiveModel] = useState('Gemini 3.5 Flash');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
+
+  // Synchronous in-flight ref — prevents overlapping Gemini API calls
+  // even if the caller bypasses the ChatPanel-level guards.
+  const inFlightRef = useRef(false);
 
   // Detect and resolve the active optimal model name
   useEffect(() => {
@@ -46,6 +50,11 @@ export function useAI() {
   }, []);
 
   const generate = useCallback(async (userText, recentMessages = []) => {
+    // Defensive hook-level guard: reject concurrent calls immediately
+    if (inFlightRef.current) {
+      throw new Error('A request is already in progress. Please wait.');
+    }
+    inFlightRef.current = true;
     setIsGenerating(true);
     setError(null);
     try {
@@ -56,6 +65,7 @@ export function useAI() {
       throw err;
     } finally {
       setIsGenerating(false);
+      inFlightRef.current = false;
     }
   }, []);
 
