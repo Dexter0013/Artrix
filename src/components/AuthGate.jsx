@@ -4,6 +4,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
+const AVATAR_IMG = `${import.meta.env.BASE_URL || './'}Artrix1.png`;
+const LOGIN_BG   = `${import.meta.env.BASE_URL || './'}Loginback.jpg`;
+
 export default function AuthGate({ children }) {
   const { currentUser, loading, signIn } = useAuth();
   const [error, setError] = useState('');
@@ -34,22 +37,16 @@ export default function AuthGate({ children }) {
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        {/* Logo / Avatar placeholder */}
+        {/* Logo / Avatar */}
         <div style={styles.avatar}>
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="24" r="24" fill="url(#grad)" />
-            <defs>
-              <linearGradient id="grad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#6C63FF" />
-                <stop offset="1" stopColor="#3ECFCF" />
-              </linearGradient>
-            </defs>
-            <path d="M24 14a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 14c6.627 0 12 2.686 12 6v2H12v-2c0-3.314 5.373-6 12-6z"
-              fill="white" />
-          </svg>
+          <img
+            src={AVATAR_IMG}
+            alt="ArtriX"
+            style={styles.avatarImg}
+          />
         </div>
 
-        <h1 style={styles.title}>AI Assistant</h1>
+        <h1 style={styles.title}>ArtriX</h1>
         <p style={styles.subtitle}>Sign in to start chatting with your AI companion</p>
 
         {error && <p style={styles.error}>{error}</p>}
@@ -94,36 +91,54 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '20px',
-    background: 'var(--bg, #0f0f1a)',
+    backgroundImage: `linear-gradient(rgba(4, 18, 8, 0.45), rgba(4, 18, 8, 0.65)), url('${LOGIN_BG}')`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
   },
   center: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundImage: `linear-gradient(rgba(4, 18, 8, 0.45), rgba(4, 18, 8, 0.65)), url('${LOGIN_BG}')`,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
   },
   spinner: {
     width: '40px',
     height: '40px',
     border: '3px solid rgba(255,255,255,0.1)',
-    borderTop: '3px solid #6C63FF',
+    borderTop: '3px solid var(--accent, #8cb374)',
     borderRadius: '50%',
     animation: 'spin 0.8s linear infinite',
   },
   card: {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'rgba(10, 20, 14, 0.72)',
+    border: '1px solid rgba(140, 179, 116, 0.25)',
     backdropFilter: 'blur(20px)',
+    WebkitBackdropFilter: 'blur(20px)',
     borderRadius: '24px',
     padding: '48px 40px',
     maxWidth: '400px',
     width: '100%',
     textAlign: 'center',
-    boxShadow: '0 25px 60px rgba(0,0,0,0.5)',
+    boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(4, 18, 8, 0.4)',
   },
   avatar: {
     marginBottom: '20px',
-    display: 'inline-block',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarImg: {
+    width: '76px',
+    height: '76px',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    border: '2px solid rgba(140, 179, 116, 0.5)',
+    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
   },
   title: {
     fontSize: '28px',
