@@ -49,6 +49,7 @@ export class SpeechInputWrapper {
       this.recognition = new SpeechRecognition();
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
+      this.recognition.maxAlternatives = 1;
       this.recognition.lang = this.lang;
 
       this.recognition.onstart = () => {

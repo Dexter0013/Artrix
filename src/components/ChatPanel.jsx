@@ -101,12 +101,31 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     isMicEnabledRef.current = isMicEnabled;
   }, [isMicEnabled]);
 
-  const initialInputRef = useRef('');
+  const preVoiceInputRef = useRef('');
+  const accumulatedVoiceRef = useRef('');
+  const lastSessionTextRef = useRef('');
 
   const handleTranscript = useCallback((text) => {
-    const base = initialInputRef.current ? initialInputRef.current.trim() : '';
-    if (text) {
-      setInput(base ? `${base} ${text}` : text);
+    if (!text) return;
+    lastSessionTextRef.current = text;
+
+    const base = preVoiceInputRef.current ? preVoiceInputRef.current.trim() : '';
+    const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
+
+    const currentVoice = accumulated ? `${accumulated} ${text}` : text;
+    const fullInput = base ? `${base} ${currentVoice}` : currentVoice;
+
+    setInput(fullInput);
+  }, []);
+
+  const handleVoiceEnd = useCallback(() => {
+    if (lastSessionTextRef.current) {
+      const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
+      const sessionText = lastSessionTextRef.current.trim();
+      if (sessionText) {
+        accumulatedVoiceRef.current = accumulated ? `${accumulated} ${sessionText}` : sessionText;
+      }
+      lastSessionTextRef.current = '';
     }
   }, []);
 
@@ -117,13 +136,18 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     setErrorMessage: setMicErrorMessage,
     start: startMic,
     stop: stopMic,
-  } = useVoiceInput(handleTranscript);
+  } = useVoiceInput({
+    onTranscript: handleTranscript,
+    onEnd: handleVoiceEnd,
+  });
 
   // Auto-start microphone on mount if supported and enabled
   useEffect(() => {
     if (!isMicSupported || !hasKey) return;
     if (isMicEnabled && !isMicListening) {
-      initialInputRef.current = input;
+      preVoiceInputRef.current = input;
+      accumulatedVoiceRef.current = '';
+      lastSessionTextRef.current = '';
       startMic();
     }
   }, [isMicSupported, hasKey]);
@@ -134,10 +158,9 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     if (isMicEnabled && !isMicListening && !sending && !isGenerating && !micErrorMessage) {
       const timer = setTimeout(() => {
         if (isMicEnabledRef.current && !sending && !isGenerating) {
-          initialInputRef.current = input;
           startMic();
         }
-      }, 400);
+      }, 50);
       return () => clearTimeout(timer);
     }
   }, [isMicListening, isMicEnabled, isMicSupported, hasKey, sending, isGenerating, micErrorMessage]);
@@ -150,7 +173,9 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     } else {
       setIsMicEnabled(true);
       isMicEnabledRef.current = true;
-      initialInputRef.current = input;
+      preVoiceInputRef.current = input;
+      accumulatedVoiceRef.current = '';
+      lastSessionTextRef.current = '';
       startMic();
     }
   }, [isMicListening, isMicEnabled, input, stopMic, startMic]);
@@ -337,6 +362,9 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     inFlightRef.current = true;
     lastSentRef.current = now;
     setInput('');
+    preVoiceInputRef.current = '';
+    accumulatedVoiceRef.current = '';
+    lastSessionTextRef.current = '';
     setSending(true);
     unlockAudio(); // Unlock audio immediately on user click
 

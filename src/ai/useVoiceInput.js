@@ -16,7 +16,7 @@ export function useVoiceInput(onTranscriptCallback, onErrorCallback) {
     options = onTranscriptCallback;
   }
 
-  const { onTranscript, onError, lang = 'en-US' } = options;
+  const { onTranscript, onError, onEnd, lang = 'en-US' } = options;
 
   const [isListening, setIsListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -25,6 +25,7 @@ export function useVoiceInput(onTranscriptCallback, onErrorCallback) {
   // Keep latest callbacks in refs to avoid re-instantiating recognizer unnecessarily
   const onTranscriptRef = useRef(onTranscript);
   const onErrorRef = useRef(onError);
+  const onEndRef = useRef(onEnd);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
@@ -33,6 +34,10 @@ export function useVoiceInput(onTranscriptCallback, onErrorCallback) {
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
+
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   const speechInputRef = useRef(null);
 
@@ -59,6 +64,9 @@ export function useVoiceInput(onTranscriptCallback, onErrorCallback) {
       },
       onEnd: () => {
         setIsListening(false);
+        if (onEndRef.current) {
+          onEndRef.current();
+        }
       },
     });
 
