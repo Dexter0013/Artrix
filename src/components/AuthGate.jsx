@@ -46,8 +46,8 @@ export default function AuthGate({ children }) {
           />
         </div>
 
-        <h1 style={styles.title}>ArtriX</h1>
-        <p style={styles.subtitle}>Sign in to start chatting with your AI companion</p>
+        <h1 style={styles.title}>Artrix</h1>
+        <p style={styles.subtitle}>Your Personal AI Companion &amp; Assistant</p>
 
         {error && <p style={styles.error}>{error}</p>}
 

@@ -109,6 +109,7 @@ export default function App() {
       <div style={styles.page}>
         <header style={styles.header}>
           <h1 style={styles.mainTitle}>Artrix</h1>
+          <p style={styles.mainSubtitle}>Your Personal AI Companion &amp; Assistant</p>
         </header>
       <main className="app-layout">
         <div className="avatar-col">
@@ -154,5 +155,12 @@ const styles = {
     letterSpacing: '-0.5px',
     color: 'var(--text)',
     margin: 0,
+  },
+  mainSubtitle: {
+    fontSize: '13px',
+    color: 'var(--text-dim)',
+    margin: '4px 0 0',
+    fontWeight: '500',
+    letterSpacing: '0.2px',
   },
 };
