@@ -23,6 +23,50 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 
+export function mergeTranscripts(accumulated, text) {
+  const acc = (accumulated || '').trim();
+  const txt = (text || '').trim();
+
+  if (!acc) return txt;
+  if (!txt) return acc;
+
+  const accLower = acc.toLowerCase();
+  const txtLower = txt.toLowerCase();
+
+  // 1. `txt` already starts with the full `acc` prefix (mobile WebKit/Blink continuous result buffer)
+  if (txtLower.startsWith(accLower)) {
+    return txt;
+  }
+
+  // 2. `acc` already ends with `txt` (redundant interim payload)
+  if (accLower.endsWith(txtLower)) {
+    return acc;
+  }
+
+  // 3. Find and strip overlapping word boundaries between end of acc and start of txt
+  const accWords = acc.split(/\s+/);
+  const txtWords = txt.split(/\s+/);
+
+  let maxOverlap = 0;
+  const maxCheck = Math.min(accWords.length, txtWords.length);
+
+  for (let len = maxCheck; len >= 1; len--) {
+    const accTail = accWords.slice(accWords.length - len).map((w) => w.toLowerCase()).join(' ');
+    const txtHead = txtWords.slice(0, len).map((w) => w.toLowerCase()).join(' ');
+    if (accTail === txtHead) {
+      maxOverlap = len;
+      break;
+    }
+  }
+
+  if (maxOverlap > 0) {
+    const newWords = txtWords.slice(maxOverlap);
+    return [...accWords, ...newWords].join(' ');
+  }
+
+  return `${acc} ${txt}`;
+}
+
 export function parseEmotionalSegments(rawText) {
   if (!rawText) return [];
   const moodMap = {
@@ -112,8 +156,8 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     const base = preVoiceInputRef.current ? preVoiceInputRef.current.trim() : '';
     const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
 
-    const currentVoice = accumulated ? `${accumulated} ${text}` : text;
-    const fullInput = base ? `${base} ${currentVoice}` : currentVoice;
+    const voiceText = mergeTranscripts(accumulated, text);
+    const fullInput = mergeTranscripts(base, voiceText);
 
     setInput(fullInput);
   }, []);
@@ -123,7 +167,7 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
       const sessionText = lastSessionTextRef.current.trim();
       if (sessionText) {
-        accumulatedVoiceRef.current = accumulated ? `${accumulated} ${sessionText}` : sessionText;
+        accumulatedVoiceRef.current = mergeTranscripts(accumulated, sessionText);
       }
       lastSessionTextRef.current = '';
     }
