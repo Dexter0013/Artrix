@@ -198,18 +198,27 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     }
   }, [isMicSupported, hasKey]);
 
-  // Keep microphone active continuously when enabled by user
+  // Turn off microphone immediately whenever assistant is speaking, sending, or generating
+  useEffect(() => {
+    if (isSpeaking || sending || isGenerating) {
+      if (isMicListening) {
+        stopMic();
+      }
+    }
+  }, [isSpeaking, sending, isGenerating, isMicListening, stopMic]);
+
+  // Keep microphone active continuously when enabled, except while assistant is speaking, sending, or generating
   useEffect(() => {
     if (!isMicSupported || !hasKey) return;
-    if (isMicEnabled && !isMicListening && !sending && !isGenerating && !micErrorMessage) {
+    if (isMicEnabled && !isMicListening && !isSpeaking && !sending && !isGenerating && !micErrorMessage) {
       const timer = setTimeout(() => {
-        if (isMicEnabledRef.current && !sending && !isGenerating) {
+        if (isMicEnabledRef.current && !isSpeaking && !sending && !isGenerating) {
           startMic();
         }
-      }, 50);
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isMicListening, isMicEnabled, isMicSupported, hasKey, sending, isGenerating, micErrorMessage]);
+  }, [isMicListening, isMicEnabled, isSpeaking, isMicSupported, hasKey, sending, isGenerating, micErrorMessage, startMic]);
 
   const handleMicToggle = useCallback(() => {
     if (isMicListening || isMicEnabled) {
@@ -638,49 +647,47 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
 
       {/* If API Key is missing, show Key Prompt Card */}
       {!hasKey ? (
-        <div style={styles.keyPromptContainer}>
-          <div style={styles.keyPromptCard}>
-            <Key className="w-10 h-10 text-cyan-400 mb-1" />
-            <h3 style={styles.keyPromptTitle}>Connect Gemini API Key</h3>
-            <p style={styles.keyPromptDesc}>
-              To begin chatting with Artrix, please enter your free Google Gemini API key. It is saved securely in your browser.
-            </p>
+        <div style={styles.keyPromptCard}>
+          <Key className="w-12 h-12 text-cyan-400 mb-1" />
+          <h3 style={styles.keyPromptTitle}>Connect Gemini API Key</h3>
+          <p style={styles.keyPromptDesc}>
+            To begin chatting with Artrix, please enter your free Google Gemini API key. It is saved securely in your browser.
+          </p>
 
-            <div style={styles.keyInputRow}>
-              <input
-                id="gemini-key-input"
-                type="password"
-                placeholder="AIzaSy..."
-                value={tempKey}
-                onChange={(e) => {
-                  setTempKey(e.target.value);
-                  setKeyInputError('');
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
-                style={styles.keyInput}
-              />
-              <button
-                id="btn-save-gemini-key"
-                onClick={handleSaveKey}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-cyan-400 hover:from-indigo-600 hover:to-cyan-500 text-white font-semibold text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer shadow-md flex-shrink-0"
-              >
-                Connect
-              </button>
-            </div>
-
-            {keyInputError && (
-              <p style={styles.keyErrorText}>{keyInputError}</p>
-            )}
-
-            <a
-              href="https://aistudio.google.com/app/apikey"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.keyLink}
+          <div style={styles.keyInputRow}>
+            <input
+              id="gemini-key-input"
+              type="password"
+              placeholder="AIzaSy..."
+              value={tempKey}
+              onChange={(e) => {
+                setTempKey(e.target.value);
+                setKeyInputError('');
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleSaveKey()}
+              style={styles.keyInput}
+            />
+            <button
+              id="btn-save-gemini-key"
+              onClick={handleSaveKey}
+              style={styles.saveKeyBtn}
             >
-              Get a free Gemini API key →
-            </a>
+              Connect
+            </button>
           </div>
+
+          {keyInputError && (
+            <p style={styles.keyErrorText}>{keyInputError}</p>
+          )}
+
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.keyLink}
+          >
+            Get a free Gemini API key →
+          </a>
         </div>
       ) : (
         <>
@@ -823,19 +830,25 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
               <button
                 id="btn-mic"
                 title={
-                  isMicListening || isMicEnabled
+                  isSpeaking
+                    ? 'Microphone paused while assistant is speaking…'
+                    : isMicListening || isMicEnabled
                     ? 'Voice Input ON (Click to turn off)'
                     : 'Voice Input OFF (Click to turn on)'
                 }
                 className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer select-none border ${
-                  isMicListening || isMicEnabled
+                  isSpeaking
+                    ? 'bg-amber-500/15 border-amber-400/40 text-amber-300'
+                    : isMicListening || isMicEnabled
                     ? 'bg-rose-500/25 border-rose-400 text-rose-300 shadow-[0_0_12px_rgba(244,63,94,0.5)]'
                     : 'bg-white/5 hover:bg-white/10 text-white/40 border-white/10'
-                } ${sending || isGenerating || !isOnline ? 'opacity-40 cursor-not-allowed' : ''}`}
+                } ${sending || isGenerating || isSpeaking || !isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={handleMicToggle}
-                disabled={sending || isGenerating || !isOnline}
+                disabled={sending || isGenerating || isSpeaking || !isOnline}
               >
-                {isMicListening || isMicEnabled ? (
+                {isSpeaking ? (
+                  <MicOff className="w-5 h-5 text-amber-300 opacity-75" />
+                ) : isMicListening || isMicEnabled ? (
                   <Mic className="w-5 h-5 text-rose-400 animate-pulse" />
                 ) : (
                   <MicOff className="w-5 h-5 text-white/40" />
@@ -896,45 +909,34 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
-    minWidth: 0,
-    flex: 1,
   },
   avatar: {
     width: '32px',
     height: '32px',
     borderRadius: '50%',
     objectFit: 'cover',
-    flexShrink: 0,
   },
   nameBlock: {
     display: 'flex',
     flexDirection: 'column',
     gap: '2px',
-    minWidth: 0,
   },
   userName: {
     color: '#fff',
     fontSize: '14px',
     fontWeight: '600',
     lineHeight: 1.2,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   },
   modelBadge: {
     fontSize: '11px',
     color: '#3ECFCF',
     fontWeight: '600',
     letterSpacing: '0.02em',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap',
   },
   actions: {
     display: 'flex',
     alignItems: 'center',
-    gap: '6px',
-    flexShrink: 0,
+    gap: '8px',
   },
   iconBtn: {
     background: 'none',
@@ -955,40 +957,34 @@ const styles = {
     cursor: 'pointer',
     transition: 'background 0.15s',
   },
-  keyPromptContainer: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-  },
   keyPromptCard: {
+    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     textAlign: 'center',
-    maxWidth: '360px',
-    gap: '12px',
-  },
-  keyPromptIcon: {
-    fontSize: '36px',
-    marginBottom: '2px',
+    maxWidth: '420px',
+    width: '100%',
+    margin: 'auto',
+    padding: '32px 24px',
+    gap: '14px',
   },
   keyPromptTitle: {
-    fontSize: '18px',
+    fontSize: '19px',
     fontWeight: '700',
     color: '#fff',
     margin: 0,
   },
   keyPromptDesc: {
     fontSize: '13px',
-    color: 'rgba(255,255,255,0.6)',
+    color: 'rgba(255,255,255,0.7)',
     lineHeight: '1.5',
     margin: 0,
   },
   keyInputRow: {
     display: 'flex',
-    gap: '8px',
+    gap: '10px',
     width: '100%',
     marginTop: '6px',
   },
@@ -996,21 +992,21 @@ const styles = {
     flex: 1,
     background: 'rgba(255,255,255,0.08)',
     border: '1px solid rgba(255,255,255,0.15)',
-    borderRadius: '10px',
+    borderRadius: '12px',
     color: '#fff',
-    fontSize: '13px',
-    padding: '10px 12px',
+    fontSize: '14px',
+    padding: '11px 14px',
     outline: 'none',
     fontFamily: 'inherit',
   },
   saveKeyBtn: {
     background: 'linear-gradient(135deg, #6C63FF, #3ECFCF)',
     border: 'none',
-    borderRadius: '10px',
+    borderRadius: '12px',
     color: '#fff',
     fontWeight: '600',
-    fontSize: '13px',
-    padding: '10px 16px',
+    fontSize: '14px',
+    padding: '11px 18px',
     cursor: 'pointer',
     flexShrink: 0,
   },
@@ -1067,9 +1063,6 @@ const styles = {
     padding: '10px 14px',
     borderRadius: '16px',
     lineHeight: '1.5',
-    boxSizing: 'border-box',
-    wordBreak: 'break-word',
-    overflowWrap: 'anywhere',
   },
   bubbleHeader: {
     display: 'flex',
@@ -1132,8 +1125,6 @@ const styles = {
     margin: 0,
     fontSize: '14px',
     whiteSpace: 'pre-wrap',
-    wordBreak: 'break-word',
-    overflowWrap: 'anywhere',
   },
   inputRow: {
     display: 'flex',
@@ -1145,7 +1136,6 @@ const styles = {
   },
   textarea: {
     flex: 1,
-    minWidth: 0,
     resize: 'none',
     background: 'rgba(255,255,255,0.07)',
     border: '1px solid rgba(255,255,255,0.12)',
