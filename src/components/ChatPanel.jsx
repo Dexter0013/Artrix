@@ -23,7 +23,9 @@ import {
   ShieldCheck,
   Zap,
   AlertTriangle,
+  Globe,
 } from 'lucide-react';
+import { performWebSearch, isWebSearchQuery } from '../ai/webSearch';
 
 export function mergeTranscripts(accumulated, text) {
   const acc = (accumulated || '').trim();
@@ -138,6 +140,8 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     return saved === null ? true : saved === 'true';
   });
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
+  const [isSearchingWeb, setIsSearchingWeb] = useState(false);
   const bottomRef                 = useRef(null);
 
   // ── Voice Input (Default ON for larger screens, default OFF for smaller screens) ─
@@ -463,8 +467,26 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       // 1. Write user message to Firestore
       await sendMessage(currentUser.uid, text, 'user');
 
-      // 2. Generate response via Gemini API
-      const rawAiResponse = await generate(text, messages);
+      // 2. Perform live web search if enabled or query contains search triggers
+      let searchContext = '';
+      const requiresSearch = isWebSearchEnabled || isWebSearchQuery(text);
+
+      if (requiresSearch) {
+        setIsSearchingWeb(true);
+        try {
+          const searchRes = await performWebSearch(text);
+          if (searchRes && searchRes.hasResults) {
+            searchContext = searchRes.context;
+          }
+        } catch (searchErr) {
+          console.warn('[WebSearch] Error fetching web results:', searchErr);
+        } finally {
+          setIsSearchingWeb(false);
+        }
+      }
+
+      // 3. Generate response via Gemini API with searchContext
+      const rawAiResponse = await generate(text, messages, { searchContext });
 
       // 3. Parse multi-expression emotional timeline segments
       const segments = parseEmotionalSegments(rawAiResponse);
@@ -592,6 +614,30 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
         </div>
 
         <div style={styles.actions}>
+          {/* Web Search Toggle Button */}
+          <button
+            id="btn-toggle-web-search"
+            title={
+              isWebSearchEnabled
+                ? 'Web Search: ALWAYS ON (Click to set Auto-Detect)'
+                : 'Web Search: AUTO-DETECT (Click to keep Always ON)'
+            }
+            className={`p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center cursor-pointer ${
+              isSearchingWeb
+                ? 'bg-cyan-500/25 border border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(62,207,207,0.5)] animate-pulse'
+                : isWebSearchEnabled
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-[0_0_10px_rgba(62,207,207,0.2)]'
+                : 'bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/10'
+            }`}
+            onClick={() => setIsWebSearchEnabled((prev) => !prev)}
+          >
+            {isSearchingWeb ? (
+              <Loader2 className="w-4 h-4 text-cyan-300 animate-spin" />
+            ) : (
+              <Globe className={`w-4 h-4 ${isWebSearchEnabled ? 'text-cyan-300' : 'text-white/80'}`} />
+            )}
+          </button>
+
           {/* Voice Toggle Button (Kokoro TTS) */}
           <button
             id="btn-toggle-voice"

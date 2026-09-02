@@ -132,12 +132,14 @@ export async function getFastestModel(apiKey) {
   return { id: cachedOptimalModel, name: cachedDisplayName };
 }
 
-export async function generateGeminiReply(userText, recentMessages = []) {
+export async function generateGeminiReply(userText, recentMessages = [], options = {}) {
   const apiKey = getGeminiApiKey();
 
   if (!apiKey) {
     throw new Error('Gemini API key is required. Please enter your API key to start chatting.');
   }
+
+  const { searchContext = '' } = typeof options === 'string' ? { searchContext: options } : (options || {});
 
   const modelInfo = await getFastestModel(apiKey);
   let modelName = modelInfo.id;
@@ -166,12 +168,16 @@ export async function generateGeminiReply(userText, recentMessages = []) {
     }
   });
 
+  const effectiveUserText = searchContext
+    ? `[Web Search Context & Factual Summaries]:\n${searchContext}\n\n[User Message]:\n${userText}`
+    : userText;
+
   if (lastRole === 'user' && contents.length > 0) {
-    contents[contents.length - 1].parts.push({ text: userText });
+    contents[contents.length - 1].parts.push({ text: effectiveUserText });
   } else {
     contents.push({
       role: 'user',
-      parts: [{ text: userText }],
+      parts: [{ text: effectiveUserText }],
     });
   }
 

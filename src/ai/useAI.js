@@ -49,7 +49,7 @@ export function useAI() {
     setError(null);
   }, []);
 
-  const generate = useCallback(async (userText, recentMessages = []) => {
+  const generate = useCallback(async (userText, recentMessages = [], options = {}) => {
     // Defensive hook-level guard: reject concurrent calls immediately
     if (inFlightRef.current) {
       throw new Error('A request is already in progress. Please wait.');
@@ -58,7 +58,7 @@ export function useAI() {
     setIsGenerating(true);
     setError(null);
     try {
-      const reply = await generateGeminiReply(userText, recentMessages);
+      const reply = await generateGeminiReply(userText, recentMessages, options);
       return reply;
     } catch (err) {
       setError(err.message);
