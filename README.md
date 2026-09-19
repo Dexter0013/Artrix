@@ -23,7 +23,7 @@ An interactive AI Assistant web application and native browser extension featuri
 - **Live Free Web Search (DuckDuckGo + Wikipedia)** — Real-time client-side search requiring **0 API keys** and zero external npm libraries:
   - **Auto-Keyword Detection**: Automatically queries search engines for facts, current events, weather, or news.
   - **Manual `<Globe />` Toggle**: Header button toggles Web Search **ALWAYS ON** for deep research mode.
-- **Continuous Voice Input (STT)** — Native browser speech recognition (Web Speech API) with zero-latency streaming:
+- **Continuous Voice Input (STT, Main Web App)** — Native browser speech recognition (Web Speech API) with zero-latency streaming on the main web application:
   - **Screen-Dependent Defaults**: Microphone is ON by default on desktop, and OFF by default on mobile.
   - **Auto-Pause While Assistant Speaks**: Microphone temporarily pauses during assistant speech to prevent audio feedback.
   - **4-Second Pause Auto-Send (Desktop)**: Automatically submits query after a 4-second pause with a visual countdown timer.

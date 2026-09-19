@@ -5,14 +5,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAI } from '../ai/useAI';
 import { speakSegments, stopSpeech, unlockAudio } from '../ai/tts';
-import { useVoiceInput } from '../ai/useVoiceInput';
 import {
   Volume2,
   VolumeX,
   Key,
   Trash2,
-  Mic,
-  MicOff,
   Square,
   Send,
   Loader2,
@@ -25,7 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { performWebSearch, isWebSearchQuery } from '../ai/webSearch';
-import { parseEmotionalSegments, mergeTranscripts } from '../components/ChatPanel';
+import { parseEmotionalSegments } from '../components/ChatPanel';
 
 export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechEnd, onTyping }) {
 
@@ -174,42 +171,6 @@ export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechE
     }
   };
 
-  // ── Voice Input ────────────────────────────────────────────────────────────
-  const [isMicEnabled, setIsMicEnabled] = useState(false);
-  const preVoiceInputRef = useRef('');
-  const accumulatedVoiceRef = useRef('');
-  const lastSessionTextRef = useRef('');
-
-  const handleTranscript = useCallback((text) => {
-    if (!text) return;
-    lastSessionTextRef.current = text;
-    const base = preVoiceInputRef.current ? preVoiceInputRef.current.trim() : '';
-    const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
-    const voiceText = mergeTranscripts(accumulated, text);
-    setInput(mergeTranscripts(base, voiceText));
-  }, []);
-
-  const handleVoiceEnd = useCallback(() => {
-    if (lastSessionTextRef.current) {
-      const accumulated = accumulatedVoiceRef.current ? accumulatedVoiceRef.current.trim() : '';
-      const sessionText = lastSessionTextRef.current.trim();
-      if (sessionText) {
-        accumulatedVoiceRef.current = mergeTranscripts(accumulated, sessionText);
-      }
-      lastSessionTextRef.current = '';
-    }
-  }, []);
-
-  const {
-    isListening: isMicListening,
-    isSupported: isMicSupported,
-    start: startMic,
-    stop: stopMic,
-  } = useVoiceInput({
-    onTranscript: handleTranscript,
-    onEnd: handleVoiceEnd,
-  });
-
   const inFlightRef = useRef(false);
   const lastSentRef = useRef(0);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -293,11 +254,7 @@ export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechE
 
     inFlightRef.current = true;
     lastSentRef.current = now;
-    stopMic();
     setInput('');
-    preVoiceInputRef.current = '';
-    accumulatedVoiceRef.current = '';
-    lastSessionTextRef.current = '';
     setSending(true);
     unlockAudio();
 
@@ -394,7 +351,7 @@ export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechE
       setSending(false);
       inFlightRef.current = false;
     }
-  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, onMoodDetected, onSpeechStart, onSpeechEnd, stopMic, activeDocContext, isWebSearchEnabled]);
+  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, onMoodDetected, onSpeechStart, onSpeechEnd, activeDocContext, isWebSearchEnabled]);
 
   const handleAskContextAction = useCallback((actionPrompt, forceWeb = false) => {
     handleSend(actionPrompt, { forceWebSearch: forceWeb });
@@ -651,7 +608,7 @@ export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechE
               id="sidepanel-chat-input"
               rows={1}
               style={styles.textarea}
-              placeholder={isMicListening ? 'Listening…' : isGenerating ? 'Thinking…' : 'Ask Artrix anything…'}
+              placeholder={isGenerating ? 'Thinking…' : 'Ask Artrix anything…'}
               value={input}
               onChange={(e) => {
                 setInput(e.target.value);
@@ -660,29 +617,6 @@ export default function SidePanelChat({ onMoodDetected, onSpeechStart, onSpeechE
               onKeyDown={handleKeyDown}
               disabled={sending || isGenerating || !isOnline}
             />
-
-            {isMicSupported && (
-              <button
-                type="button"
-                style={{
-                  ...styles.sendBtn,
-                  background: isMicListening ? 'rgba(255,107,107,0.3)' : 'rgba(255,255,255,0.08)',
-                  color: isMicListening ? '#ff6b6b' : 'var(--text-dim)',
-                }}
-                onClick={() => {
-                  if (isMicListening) {
-                    stopMic();
-                    setIsMicEnabled(false);
-                  } else {
-                    startMic();
-                    setIsMicEnabled(true);
-                  }
-                }}
-                title={isMicListening ? 'Stop mic' : 'Voice input'}
-              >
-                {isMicListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
-            )}
 
             <button
               type="button"

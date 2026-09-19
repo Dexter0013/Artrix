@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "package": "vite build && powershell -Command \"Compress-Archive -Path 'dist\\*' -DestinationPath 'artrix-extension.zip' -Force\""
   },
   "dependencies": {
     "@rive-app/react-canvas": "^4.11.5",
