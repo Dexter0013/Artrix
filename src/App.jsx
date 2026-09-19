@@ -39,7 +39,6 @@ export default function App() {
   const fireInput = (key, val) => {
     const input = INPUT_MAP[key];
     if (!input) return;
-    // Trigger inputs have a .fire() method; number/boolean inputs use .value
     if (typeof input.fire === 'function') {
       if (val) input.fire();
     } else {
@@ -57,7 +56,6 @@ export default function App() {
   const resetToIdle = useCallback(() => {
     cancelIdleRevert();
     setCurrentMood('Idle');
-    // Btn_Normal = 1 holds the SM in the idle state
     if (inputNormal) inputNormal.value = 1;
     if (inputBtnSmile) inputBtnSmile.value = 0;
   }, [cancelIdleRevert, inputNormal, inputBtnSmile]);
@@ -78,9 +76,7 @@ export default function App() {
       return;
     }
 
-    // Release the idle-lock first so the SM can transition
     if (inputNormal) inputNormal.value = 0;
-    // Fire the selected trigger
     fireInput(mood.actionType, 1);
 
     if (autoRevert) {
@@ -111,24 +107,24 @@ export default function App() {
           <h1 style={styles.mainTitle}>Artrix</h1>
           <p style={styles.mainSubtitle}>Your Personal AI Companion &amp; Assistant</p>
         </header>
-      <main className="app-layout">
-        <div className="avatar-col">
-          <AssistantStage
-            RiveComponent={RiveComponent}
-            currentMood={currentMood}
-            onReset={resetToIdle}
-          />
-        </div>
+        <main className="app-layout">
+          <div className="avatar-col">
+            <AssistantStage
+              RiveComponent={RiveComponent}
+              currentMood={currentMood}
+              onReset={resetToIdle}
+            />
+          </div>
 
-        <div className="chat-col">
-          <ChatPanel
-            onMoodDetected={handleTriggerMood}
-            onSpeechStart={cancelIdleRevert}
-            onSpeechEnd={() => scheduleIdleRevert(2000)}
-            onTyping={() => scheduleIdleRevert(2000)}
-          />
-        </div>
-      </main>
+          <div className="chat-col">
+            <ChatPanel
+              onMoodDetected={handleTriggerMood}
+              onSpeechStart={cancelIdleRevert}
+              onSpeechEnd={() => scheduleIdleRevert(2000)}
+              onTyping={() => scheduleIdleRevert(2000)}
+            />
+          </div>
+        </main>
       </div>
     </>
   );
@@ -137,16 +133,22 @@ export default function App() {
 const styles = {
   page: {
     minHeight: '100vh',
+    width: '100%',
+    maxWidth: '100vw',
+    boxSizing: 'border-box',
+    overflowX: 'hidden',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '24px 20px 60px',
+    padding: '20px 16px 60px',
     position: 'relative',
     zIndex: 2,
   },
   header: {
     textAlign: 'center',
     maxWidth: '600px',
+    width: '100%',
+    boxSizing: 'border-box',
     marginBottom: '20px',
   },
   mainTitle: {

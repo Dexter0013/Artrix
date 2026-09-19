@@ -21,7 +21,33 @@ export default function AuthGate({ children }) {
     );
   }
 
-  if (currentUser) return children;
+  if (currentUser) {
+    if (typeof window !== 'undefined' && window.location.search.includes('auth_mode=extension_sync')) {
+      setTimeout(() => {
+        window.close();
+      }, 1200);
+      return (
+        <div style={styles.page}>
+          <div style={styles.card}>
+            <div style={{ fontSize: '42px', marginBottom: '12px' }}>🦌</div>
+            <h2 style={styles.title}>Connected to Artrix!</h2>
+            <p style={{ color: '#8cb374', fontSize: '15px', fontWeight: '600', margin: '8px 0' }}>
+              ✓ Google authentication synced with your side panel.
+            </p>
+            <p style={styles.subtitle}>Closing tab automatically...</p>
+            <button
+              type="button"
+              onClick={() => window.close()}
+              style={styles.guestBtn}
+            >
+              Close Tab Now
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return children;
+  }
 
   const handleGoogleSignIn = async () => {
     setError('');
@@ -29,7 +55,15 @@ export default function AuthGate({ children }) {
     try {
       await signIn();
     } catch (err) {
-      setError(err.message || 'Sign-in failed. Please try again.');
+      if (err.code === 'auth/internal-error' || err.message?.includes('internal-error')) {
+        setError(
+          'Firebase internal error: Please ensure Google provider is enabled in Firebase Console (Authentication > Sign-in method) and your domain is in Authorized Domains.'
+        );
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Unauthorized domain: Please add your current domain to Firebase Console > Authentication > Settings > Authorized Domains.');
+      } else {
+        setError(err.message || 'Sign-in failed. Please try again.');
+      }
     } finally {
       setSigningIn(false);
     }
@@ -50,7 +84,11 @@ export default function AuthGate({ children }) {
         <h1 style={styles.title}>Artrix</h1>
         <p style={styles.subtitle}>Your Personal AI Companion &amp; Assistant</p>
 
-        {error && <p style={styles.error}>{error}</p>}
+        {error && (
+          <div style={styles.errorBox}>
+            <p style={styles.errorText}>{error}</p>
+          </div>
+        )}
 
         <button
           id="btn-google-signin"
@@ -90,10 +128,14 @@ function GoogleIcon() {
 const styles = {
   page: {
     minHeight: '100vh',
+    width: '100%',
+    maxWidth: '100vw',
+    boxSizing: 'border-box',
+    overflowX: 'hidden',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '20px',
+    padding: '16px',
     backgroundImage: `linear-gradient(rgba(4, 18, 8, 0.45), rgba(4, 18, 8, 0.65)), url('${LOGIN_BG}')`,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
@@ -101,6 +143,9 @@ const styles = {
   },
   center: {
     minHeight: '100vh',
+    width: '100%',
+    maxWidth: '100vw',
+    boxSizing: 'border-box',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -123,9 +168,10 @@ const styles = {
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
     borderRadius: '24px',
-    padding: '48px 40px',
-    maxWidth: '400px',
+    padding: '36px 28px',
+    maxWidth: '380px',
     width: '100%',
+    boxSizing: 'border-box',
     textAlign: 'center',
     boxShadow: '0 25px 60px rgba(0,0,0,0.6), 0 0 40px rgba(4, 18, 8, 0.4)',
   },
@@ -156,13 +202,35 @@ const styles = {
     margin: '0 0 32px',
     lineHeight: '1.5',
   },
-  error: {
-    color: '#ff6b6b',
-    fontSize: '14px',
+  errorBox: {
     marginBottom: '16px',
     padding: '10px 14px',
-    background: 'rgba(255,107,107,0.1)',
-    borderRadius: '8px',
+    background: 'rgba(255, 107, 107, 0.12)',
+    border: '1px solid rgba(255, 107, 107, 0.28)',
+    borderRadius: '10px',
+    textAlign: 'left',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  errorText: {
+    color: '#ff8585',
+    fontSize: '12px',
+    lineHeight: '1.45',
+    margin: 0,
+    wordBreak: 'break-word',
+  },
+  guestBtn: {
+    width: '100%',
+    marginTop: '12px',
+    padding: '12px 18px',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.16)',
+    color: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: '12px',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
   },
   googleBtn: {
     display: 'flex',

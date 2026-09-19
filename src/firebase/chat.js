@@ -15,6 +15,27 @@ import { db } from './config';
  * Returns the Firestore collection ref for a user's messages.
  * Path: users/{userId}/messages
  */
+const LOCAL_STORAGE_KEY = 'artrix_local_messages';
+const localListeners = new Set();
+
+function getLocalMessages() {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function notifyLocalListeners() {
+  const msgs = getLocalMessages();
+  localListeners.forEach((cb) => cb(msgs));
+}
+
+/**
+ * Returns the Firestore collection ref for a user's messages.
+ * Path: users/{userId}/messages
+ */
 const messagesRef = (userId) =>
   collection(db, 'users', userId, 'messages');
 
@@ -25,13 +46,29 @@ const messagesRef = (userId) =>
  * @param {'user'|'assistant'} role
  * @param {string} [rawText] - Original AI response with emotion tags (assistant only)
  */
-export const sendMessage = (userId, text, role = 'user', rawText) =>
-  addDoc(messagesRef(userId), {
+export const sendMessage = async (userId, text, role = 'user', rawText) => {
+  if (userId === 'local_user' || !userId) {
+    const msgs = getLocalMessages();
+    const newMsg = {
+      id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      text,
+      role,
+      ...(rawText ? { rawText } : {}),
+      createdAt: { seconds: Math.floor(Date.now() / 1000) },
+    };
+    msgs.push(newMsg);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(msgs));
+    notifyLocalListeners();
+    return newMsg;
+  }
+
+  return addDoc(messagesRef(userId), {
     text,
     role,
     ...(rawText ? { rawText } : {}),
     createdAt: serverTimestamp(),
   });
+};
 
 /**
  * Subscribe to real-time message updates for a user.
@@ -44,6 +81,14 @@ export const sendMessage = (userId, text, role = 'user', rawText) =>
  * @param {Function} [onError] (error: Error) => void
  */
 export const subscribeToMessages = (userId, callback, onError) => {
+  if (userId === 'local_user' || !userId) {
+    localListeners.add(callback);
+    callback(getLocalMessages());
+    return () => {
+      localListeners.delete(callback);
+    };
+  }
+
   const q = query(messagesRef(userId), orderBy('createdAt', 'asc'));
   const handleError = onError ?? ((err) => console.warn('[Firestore] snapshot error:', err));
   return onSnapshot(q, (snapshot) => {
@@ -60,7 +105,14 @@ export const subscribeToMessages = (userId, callback, onError) => {
  * @param {string} userId
  */
 export const clearHistory = async (userId) => {
+  if (userId === 'local_user' || !userId) {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    notifyLocalListeners();
+    return;
+  }
+
   const snapshot = await getDocs(messagesRef(userId));
   const deletes  = snapshot.docs.map((doc) => deleteDoc(doc.ref));
   await Promise.all(deletes);
 };
+

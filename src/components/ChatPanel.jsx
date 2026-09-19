@@ -24,6 +24,9 @@ import {
   Zap,
   AlertTriangle,
   Globe,
+  FileText,
+  Scissors,
+  ExternalLink,
 } from 'lucide-react';
 import { performWebSearch, isWebSearchQuery } from '../ai/webSearch';
 
@@ -117,8 +120,10 @@ export function parseEmotionalSegments(rawText) {
   return segments;
 }
 
-export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, onTyping }) {
-  const { currentUser, signOut } = useAuth();
+export default function ChatPanel({ isSidePanel = false, onMoodDetected, onSpeechStart, onSpeechEnd, onTyping }) {
+  const { currentUser, signOut, signIn } = useAuth();
+  const [authError, setAuthError] = useState('');
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   // Gemini AI hook
   const {
@@ -142,7 +147,52 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
   const [isSearchingWeb, setIsSearchingWeb] = useState(false);
+  const [activeDocContext, setActiveDocContext] = useState(null);
   const bottomRef                 = useRef(null);
+
+  // Synchronize document/selection/snip context from Edge/Chrome extension
+  useEffect(() => {
+    if (typeof chrome !== 'undefined') {
+      const storage = chrome.storage?.session || chrome.storage?.local;
+      if (storage?.get) {
+        storage.get(['artrix_pending_context'], (res) => {
+          if (res?.artrix_pending_context) {
+            setActiveDocContext(res.artrix_pending_context);
+            try {
+              storage.remove(['artrix_pending_context']);
+            } catch {
+              // Ignore
+            }
+          }
+        });
+      }
+    }
+
+    const messageListener = (msg) => {
+      if (msg.action === 'ACTIVE_CONTEXT_CHANGED' && msg.payload) {
+        setActiveDocContext(msg.payload);
+      }
+    };
+
+    if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+      chrome.runtime.onMessage.addListener(messageListener);
+      return () => {
+        try {
+          chrome.runtime.onMessage.removeListener(messageListener);
+        } catch {
+          // Ignore
+        }
+      };
+    }
+  }, []);
+
+  const handleTriggerSnip = () => {
+    if (typeof chrome !== 'undefined' && chrome.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'TRIGGER_SNIP_FROM_PANEL' });
+    } else {
+      alert('Screen snip is available when running Artrix as an Edge/Chrome Extension!');
+    }
+  };
 
   // ── Voice Input (Default ON for larger screens, default OFF for smaller screens) ─
   const [isMicEnabled, setIsMicEnabled] = useState(() => {
@@ -355,7 +405,9 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
 
   const handleChangeKey = () => {
     const newKey = window.prompt(
-      'Enter a new Gemini API Key to update, or leave empty and click OK to delete the stored key from this browser:',
+      'Enter a new Gemini API Key to update, or leave empty and click OK to delete the stored key:\n\n' +
+      '• Get Key: https://aistudio.google.com/app/apikey\n' +
+      '• Docs: https://ai.google.dev/gemini-api/docs/api-key',
       ''
     );
     if (newKey !== null) {
@@ -432,8 +484,8 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     }
   };
 
-  const handleSend = useCallback(async () => {
-    const text = input.trim();
+  const handleSend = useCallback(async (customText, customOptions = {}) => {
+    const text = (typeof customText === 'string' ? customText : input).trim();
     if (!text || sending || isGenerating) return;
 
     // Block sends while the device has no network connection
@@ -464,12 +516,12 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
     }
 
     try {
-      // 1. Write user message to Firestore
+      // 1. Write user message to storage
       await sendMessage(currentUser.uid, text, 'user');
 
       // 2. Perform live web search if enabled or query contains search triggers
       let searchContext = '';
-      const requiresSearch = isWebSearchEnabled || isWebSearchQuery(text);
+      const requiresSearch = isWebSearchEnabled || customOptions.forceWebSearch || isWebSearchQuery(text);
 
       if (requiresSearch) {
         setIsSearchingWeb(true);
@@ -485,8 +537,20 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
         }
       }
 
-      // 3. Generate response via Gemini API with searchContext
-      const rawAiResponse = await generate(text, messages, { searchContext });
+      // 3. Prepare multimodal / document context
+      const contextToUse = customOptions.docContext !== undefined ? customOptions.docContext : activeDocContext;
+      const geminiOptions = {
+        searchContext,
+        image: contextToUse?.type === 'SNIP' ? contextToUse.image : null,
+        pageContext: contextToUse ? {
+          title: contextToUse.pageTitle,
+          url: contextToUse.pageUrl,
+          selectedText: contextToUse.type === 'SELECTION' ? contextToUse.text : null,
+        } : null,
+      };
+
+      // 4. Generate response via Gemini API with searchContext & context
+      const rawAiResponse = await generate(text, messages, geminiOptions);
 
       // 3. Parse multi-expression emotional timeline segments
       const segments = parseEmotionalSegments(rawAiResponse);
@@ -549,7 +613,11 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       setSending(false);
       inFlightRef.current = false;
     }
-  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, currentUser, onMoodDetected, onSpeechStart, onSpeechEnd, stopMic]);
+  }, [input, sending, isGenerating, isOnline, messages, voiceEnabled, generate, currentUser, onMoodDetected, onSpeechStart, onSpeechEnd, stopMic, activeDocContext, isWebSearchEnabled]);
+
+  const handleAskContextAction = useCallback((actionPrompt, forceWeb = false) => {
+    handleSend(actionPrompt, { forceWebSearch: forceWeb });
+  }, [handleSend]);
 
   // ── Desktop 4-second pause auto-send effect ────────────────────────────────
   const [autoSendCountdown, setAutoSendCountdown] = useState(0);
@@ -596,16 +664,20 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
       {/* Header */}
       <div style={styles.header}>
         <div style={styles.userInfo}>
-          {currentUser?.photoURL && (
+          {currentUser?.photoURL ? (
             <img
               src={currentUser.photoURL}
               alt="avatar"
               style={styles.avatar}
             />
+          ) : (
+            <div style={styles.defaultAvatar}>
+              {currentUser?.uid === 'local_user' ? '🦌' : '👤'}
+            </div>
           )}
           <div style={styles.nameBlock}>
             <span style={styles.userName}>
-              {currentUser?.displayName || 'User'}
+              {currentUser?.displayName || (currentUser?.uid === 'local_user' ? 'Guest (Local)' : 'User')}
             </span>
             <span style={styles.modelBadge}>
               {hasKey ? activeModel : 'API Key Required'}
@@ -666,6 +738,16 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             )}
           </button>
 
+          {/* Screen / Area Snip Button (OCR & Vision) */}
+          <button
+            id="btn-snip-tool"
+            title="Snip Area or Formula on Page (OCR & Vision Reasoning)"
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/10 transition-all duration-200 cursor-pointer flex items-center justify-center"
+            onClick={handleTriggerSnip}
+          >
+            <Scissors className="w-4 h-4" />
+          </button>
+
           {hasKey && (
             <button
               id="btn-change-api-key"
@@ -684,16 +766,27 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
           >
             <Trash2 className="w-4 h-4" />
           </button>
-          <button
-            id="btn-sign-out"
-            className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/15 text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5"
-            onClick={handleSignOut}
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span>Sign out</span>
-          </button>
+          {currentUser && currentUser.uid !== 'local_user' && (
+            <button
+              id="btn-sign-out"
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white border border-white/15 text-xs font-semibold transition-all duration-200 cursor-pointer flex items-center gap-1.5"
+              title="Sign out of Google account"
+              onClick={handleSignOut}
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign out</span>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Domain authorization or auth error banner */}
+      {authError && (
+        <div style={styles.authNotice}>
+          <span>{authError}</span>
+          <button onClick={() => setAuthError('')} style={styles.dismissBtn}>✕</button>
+        </div>
+      )}
 
       {/* If API Key is missing, show Key Prompt Card */}
       {!hasKey ? (
@@ -730,14 +823,25 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
             <p style={styles.keyErrorText}>{keyInputError}</p>
           )}
 
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={styles.keyLink}
-          >
-            Get a free Gemini API key →
-          </a>
+          <div style={styles.keyDocLinksRow}>
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.keyLink}
+            >
+              Get a free Gemini API key on Google AI Studio →
+            </a>
+            <a
+              href="https://ai.google.dev/gemini-api/docs/api-key"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.keyDocLink}
+            >
+              <ExternalLink style={{ width: 12, height: 12 }} />
+              Official Gemini API Key Documentation &amp; Setup Guide
+            </a>
+          </div>
         </div>
       ) : (
         <>
@@ -848,6 +952,78 @@ export default function ChatPanel({ onMoodDetected, onSpeechStart, onSpeechEnd, 
                 <span>Auto-sending after 4s pause…</span>
               </div>
               <span className="font-bold text-cyan-400">{autoSendCountdown}s</span>
+            </div>
+          )}
+
+          {/* Active Document Context Card (from Edge selection or snip) */}
+          {activeDocContext && (
+            <div style={styles.contextBanner}>
+              <div style={styles.contextHeader}>
+                <span style={styles.contextTitle}>
+                  <FileText style={{ width: 13, height: 13, flexShrink: 0 }} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {activeDocContext.pageTitle || 'Active Document / PDF'}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveDocContext(null)}
+                  title="Dismiss context"
+                  style={styles.contextCloseBtn}
+                >
+                  <X style={{ width: 13, height: 13 }} />
+                </button>
+              </div>
+
+              {activeDocContext.type === 'SELECTION' && (
+                <p style={styles.contextQuote}>
+                  "{activeDocContext.text.length > 200 ? activeDocContext.text.slice(0, 200) + '…' : activeDocContext.text}"
+                </p>
+              )}
+
+              {activeDocContext.type === 'SNIP' && activeDocContext.image && (
+                <div style={styles.contextImageRow}>
+                  <img
+                    src={activeDocContext.image}
+                    alt="Snipped area"
+                    style={styles.contextThumbnail}
+                  />
+                  <span style={styles.contextImageHint}>
+                    Snipped image ready for OCR &amp; visual reasoning
+                  </span>
+                </div>
+              )}
+
+              <div style={styles.contextActionRow}>
+                <button
+                  type="button"
+                  onClick={() => handleAskContextAction('Explain this simply and clearly')}
+                  style={styles.contextActionBtn}
+                >
+                  💡 Explain
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAskContextAction('Break this down step-by-step with deep reasoning')}
+                  style={styles.contextActionBtn}
+                >
+                  🧠 Deep Reason
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAskContextAction('Fact check this with web search', true)}
+                  style={styles.contextActionBtnCyan}
+                >
+                  🔍 Fact-Check
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAskContextAction('Summarize key points')}
+                  style={styles.contextActionBtn}
+                >
+                  📝 Summarize
+                </button>
+              </div>
             </div>
           )}
 
@@ -1283,5 +1459,182 @@ const styles = {
     fontSize: '12px',
     fontWeight: '500',
     flexShrink: 0,
+  },
+  contextBanner: {
+    margin: '4px 14px 6px',
+    padding: '10px 12px',
+    borderRadius: '12px',
+    background: 'rgba(140, 179, 116, 0.14)',
+    border: '1px solid rgba(140, 179, 116, 0.35)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+  },
+  contextHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  contextTitle: {
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--accent)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    overflow: 'hidden',
+  },
+  contextCloseBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-dim)',
+    cursor: 'pointer',
+    padding: '2px',
+    display: 'flex',
+    alignItems: 'center',
+    borderRadius: '4px',
+  },
+  contextQuote: {
+    fontSize: '12px',
+    color: 'var(--text)',
+    fontStyle: 'italic',
+    borderLeft: '2px solid var(--accent)',
+    paddingLeft: '8px',
+    margin: 0,
+    lineHeight: '1.4',
+    maxHeight: '60px',
+    overflowY: 'auto',
+  },
+  contextImageRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  contextThumbnail: {
+    height: '46px',
+    maxHeight: '46px',
+    borderRadius: '6px',
+    border: '1px solid var(--border)',
+    objectFit: 'contain',
+    background: 'rgba(0,0,0,0.4)',
+  },
+  contextImageHint: {
+    fontSize: '11px',
+    color: 'var(--text-dim)',
+  },
+  contextActionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    flexWrap: 'wrap',
+    paddingTop: '2px',
+  },
+  contextActionBtn: {
+    fontSize: '11px',
+    fontWeight: '600',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    background: 'rgba(140, 179, 116, 0.20)',
+    border: '1px solid rgba(140, 179, 116, 0.40)',
+    color: '#8cb374',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+  },
+  contextActionBtnCyan: {
+    fontSize: '11px',
+    fontWeight: '600',
+    padding: '4px 8px',
+    borderRadius: '6px',
+    background: 'rgba(62, 207, 207, 0.20)',
+    border: '1px solid rgba(62, 207, 207, 0.40)',
+    color: '#3ecfcf',
+    cursor: 'pointer',
+    transition: 'background 0.15s ease',
+  },
+  cloudBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '10px',
+    fontWeight: '600',
+    color: '#8cb374',
+    background: 'rgba(140, 179, 116, 0.18)',
+    border: '1px solid rgba(140, 179, 116, 0.35)',
+    padding: '2px 7px',
+    borderRadius: '999px',
+    lineHeight: '1',
+  },
+  localBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    fontSize: '10px',
+    fontWeight: '500',
+    color: 'var(--text-dim)',
+    background: 'rgba(255, 255, 255, 0.08)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    padding: '2px 7px',
+    borderRadius: '999px',
+    lineHeight: '1',
+  },
+  googleSyncBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#eef5ee',
+    background: 'linear-gradient(135deg, rgba(62,207,207,0.22), rgba(140,179,116,0.22))',
+    border: '1px solid rgba(62,207,207,0.45)',
+    padding: '5px 10px',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+    whiteSpace: 'nowrap',
+  },
+  defaultAvatar: {
+    width: '34px',
+    height: '34px',
+    borderRadius: '50%',
+    background: 'rgba(140, 179, 116, 0.15)',
+    border: '1px solid rgba(140, 179, 116, 0.35)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '16px',
+    flexShrink: 0,
+  },
+  authNotice: {
+    margin: '4px 14px 6px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    background: 'rgba(255, 180, 0, 0.12)',
+    border: '1px solid rgba(255, 180, 0, 0.35)',
+    color: '#FFB400',
+    fontSize: '11px',
+    fontWeight: '500',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  keyDocLinksRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '7px',
+    marginTop: '6px',
+    width: '100%',
+  },
+  keyDocLink: {
+    fontSize: '12px',
+    color: 'var(--text-dim)',
+    textDecoration: 'underline',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '5px',
+    transition: 'color 0.15s ease',
   },
 };

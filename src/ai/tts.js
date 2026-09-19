@@ -7,15 +7,19 @@ let cachedFemaleVoice = null;
 let lastSpokenText = '';
 let lastSpokenTime = 0;
 
+let sharedAudioCtx = null;
+
 /** Unlock audio playback context on user click/tap */
 export function unlockAudio() {
   if (typeof window === 'undefined') return;
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (AudioCtx) {
-      const ctx = new AudioCtx();
-      if (ctx.state === 'suspended') {
-        ctx.resume();
+      if (!sharedAudioCtx || sharedAudioCtx.state === 'closed') {
+        sharedAudioCtx = new AudioCtx();
+      }
+      if (sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
       }
     }
   } catch {

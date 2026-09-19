@@ -1,0 +1,172 @@
+/* ─── Artrix In-Page Extension Styles ───────────────────────────────────────── */
+
+/* 1. Floating Pill */
+.artrix-floating-pill {
+  position: absolute;
+  z-index: 2147483645;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  background: rgba(18, 29, 23, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(140, 179, 116, 0.5);
+  border-radius: 9999px;
+  color: #eef5ee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4), 0 0 12px rgba(140, 179, 116, 0.25);
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  transform: translateY(6px) scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.18s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.15s ease,
+              border-color 0.15s ease,
+              box-shadow 0.15s ease;
+}
+
+.artrix-floating-pill.artrix-pill-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.artrix-floating-pill:hover {
+  background: rgba(27, 45, 36, 0.98);
+  border-color: #a2cc86;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5), 0 0 16px rgba(140, 179, 116, 0.4);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.artrix-floating-pill:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+.artrix-pill-icon {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+}
+
+.artrix-floating-pill.artrix-pill-success {
+  background: rgba(35, 60, 45, 0.98);
+  border-color: #8cb374;
+  color: #a2cc86;
+}
+
+/* 2. Full-Screen Area Snip Overlay */
+.artrix-snip-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: rgba(0, 0, 0, 0.45);
+  cursor: crosshair;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: opacity 0.1s ease;
+}
+
+.artrix-snip-header {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 18px;
+  background: rgba(18, 29, 23, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(140, 179, 116, 0.4);
+  border-radius: 9999px;
+  color: #eef5ee;
+  font-size: 13px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.artrix-snip-badge {
+  background: rgba(140, 179, 116, 0.2);
+  color: #8cb374;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.artrix-snip-close {
+  background: none;
+  border: none;
+  color: #8fa89f;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.artrix-snip-close:hover {
+  color: #e2897a;
+  background: rgba(226, 137, 122, 0.15);
+}
+
+.artrix-snip-box {
+  position: fixed;
+  border: 2px dashed #8cb374;
+  background: rgba(140, 179, 116, 0.16);
+  box-shadow: 0 0 0 99999px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  border-radius: 4px;
+}
+
+.artrix-snip-pill {
+  position: absolute;
+  bottom: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #182720;
+  color: #a2cc86;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(140, 179, 116, 0.35);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 3. Floating Notification Toast */
+.artrix-snip-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 2147483647;
+  padding: 10px 18px;
+  background: rgba(18, 29, 23, 0.96);
+  border: 1px solid rgba(140, 179, 116, 0.6);
+  border-radius: 9999px;
+  color: #eef5ee;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 16px rgba(140, 179, 116, 0.3);
+  pointer-events: none;
+  animation: artrixToastIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.artrix-snip-toast.artrix-snip-toast-fade {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@keyframes artrixToastIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

@@ -11,20 +11,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading]         = useState(true);
 
   useEffect(() => {
+    // Listen to Firebase auth state changes
     const unsubscribe = onAuthChange((user) => {
-      setCurrentUser(user);
-      if (!user) {
-        // Automatically delete stored API key from browser storage on logout
-        clearGeminiApiKey();
-      }
+      setCurrentUser(user || null);
       setLoading(false);
     });
+
     return unsubscribe;
   }, []);
 
   const handleSignOut = async () => {
     clearGeminiApiKey();
-    await firebaseSignOut();
+    setCurrentUser(null);
+    await firebaseSignOut().catch(() => {});
+  };
+
+  const continueAsGuest = () => {
+    setCurrentUser({ uid: 'guest_user', displayName: 'Guest User', isGuest: true });
   };
 
   const value = {
@@ -32,6 +35,7 @@ export function AuthProvider({ children }) {
     loading,
     signIn:  signInWithGoogle,
     signOut: handleSignOut,
+    continueAsGuest,
   };
 
   return (

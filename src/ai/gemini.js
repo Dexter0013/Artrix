@@ -2,8 +2,13 @@
 // Strictly targets currently-live 2026 models:
 // gemini-3.5-flash → gemini-3.5-flash-lite → gemini-3.1-flash-lite (safe older fallback)
 
-const SYSTEM_INSTRUCTION = `You are Artrix, a friendly, witty, and charming AI assistant deer girl with an expressive animated avatar.
-Keep your responses conversational, concise, and helpful (typically 1 to 3 sentences).
+const SYSTEM_INSTRUCTION = `You are Artrix, a friendly, witty, and deeply intelligent AI assistant deer girl with an expressive animated avatar.
+You can help users analyze, reason through, and explain web pages, PDF documents, research papers, diagrams, and math formulas.
+Keep your responses conversational, concise, and insightful (typically 1 to 4 sentences unless the user explicitly requests a detailed step-by-step breakdown).
+When analyzing text selections or snipped formulas/diagrams:
+- Transcribe any math or key formulas accurately.
+- Provide sharp, step-by-step logical reasoning and break down complex concepts simply.
+- Draw upon factual web context when helpful.
 
 To make your avatar expressions feel completely humane, authentic, and alive, you can include emotion tags throughout your reply so your avatar dynamically shifts facial expressions as she speaks each thought!
 Available tags:
@@ -16,8 +21,8 @@ Available tags:
 You can use MULTIPLE tags across sentences to transition between expressions naturally within a single response.
 Examples:
 "Wait, are you serious?! [SURPRISE] That is the coolest project I've heard of all week! [SMILE] How did you manage to build it so quickly? [CONFUSED]"
-"Oh no, you accidentally deleted the branch?! [SURPRISE] Don't panic, git reflog can bring it right back. [IDLE] Let me walk you through the recovery command! [SMILE]"
-"Here is how that concept works: it's actually quite simple once you break it down into steps. [IDLE]"`;
+"Looking at this PDF formula: [CONFUSED] it's actually applying Bayes' rule to update conditional probabilities. [IDLE] Let me break down the terms for you! [SMILE]"`;
+
 
 export const STORAGE_KEY = 'artrix_gemini_api_key';
 export const ACTIVE_MODEL_STORAGE_KEY = 'artrix_gemini_active_model';
@@ -40,6 +45,22 @@ const DEAD_MODELS = [
 const isDeadModel = (id) =>
   DEAD_MODELS.some((pattern) => id.toLowerCase().includes(pattern));
 
+// Initialize from chrome.storage.local if available in extension context
+if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+  try {
+    chrome.storage.local.get([STORAGE_KEY, ACTIVE_MODEL_STORAGE_KEY], (result) => {
+      if (result && result[STORAGE_KEY] && !localStorage.getItem(STORAGE_KEY)) {
+        localStorage.setItem(STORAGE_KEY, result[STORAGE_KEY]);
+      }
+      if (result && result[ACTIVE_MODEL_STORAGE_KEY] && !localStorage.getItem(ACTIVE_MODEL_STORAGE_KEY)) {
+        localStorage.setItem(ACTIVE_MODEL_STORAGE_KEY, result[ACTIVE_MODEL_STORAGE_KEY]);
+      }
+    });
+  } catch {
+    // Ignore context invalidation
+  }
+}
+
 export function getGeminiApiKey() {
   return localStorage.getItem(STORAGE_KEY) || import.meta.env.VITE_GEMINI_API_KEY || '';
 }
@@ -47,7 +68,15 @@ export function getGeminiApiKey() {
 export function setGeminiApiKey(key) {
   clearGeminiApiKey();
   if (key && key.trim()) {
-    localStorage.setItem(STORAGE_KEY, key.trim());
+    const trimmed = key.trim();
+    localStorage.setItem(STORAGE_KEY, trimmed);
+    if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+      try {
+        chrome.storage.local.set({ [STORAGE_KEY]: trimmed });
+      } catch {
+        // Ignore
+      }
+    }
   }
 }
 
@@ -56,6 +85,13 @@ export function clearGeminiApiKey() {
   cachedDisplayName = null;
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(ACTIVE_MODEL_STORAGE_KEY);
+  if (typeof chrome !== 'undefined' && chrome?.storage?.local) {
+    try {
+      chrome.storage.local.remove([STORAGE_KEY, ACTIVE_MODEL_STORAGE_KEY]);
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 // Find the live Gemini 3 Flash model: gemini-3.5-flash → gemini-3.5-flash-lite → gemini-3.1-flash-lite
@@ -139,7 +175,11 @@ export async function generateGeminiReply(userText, recentMessages = [], options
     throw new Error('Gemini API key is required. Please enter your API key to start chatting.');
   }
 
-  const { searchContext = '' } = typeof options === 'string' ? { searchContext: options } : (options || {});
+  const {
+    searchContext = '',
+    image = null,
+    pageContext = null,
+  } = typeof options === 'string' ? { searchContext: options } : (options || {});
 
   const modelInfo = await getFastestModel(apiKey);
   let modelName = modelInfo.id;
@@ -168,16 +208,49 @@ export async function generateGeminiReply(userText, recentMessages = [], options
     }
   });
 
-  const effectiveUserText = searchContext
-    ? `[Web Search Context & Factual Summaries]:\n${searchContext}\n\n[User Message]:\n${userText}`
-    : userText;
+  const userParts = [];
+
+  // Add multimodal image (e.g. from area snip / formula / scanned PDF OCR)
+  if (image) {
+    const match = typeof image === 'string' ? image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/) : null;
+    if (match) {
+      userParts.push({
+        inline_data: {
+          mime_type: match[1],
+          data: match[2],
+        },
+      });
+    }
+  }
+
+  let promptBuilder = '';
+
+  if (pageContext?.selectedText) {
+    promptBuilder += `[Active Document Context]\nSource Page: ${pageContext.title || 'Current Document'}\nURL: ${pageContext.url || ''}\nSelected Excerpt:\n"""\n${pageContext.selectedText}\n"""\n\n`;
+  }
+
+  if (searchContext) {
+    promptBuilder += `[Web Search Context & Factual Summaries]:\n${searchContext}\n\n`;
+  }
+
+  if (userText && userText.trim()) {
+    promptBuilder += `[User Message]:\n${userText}`;
+  } else if (image) {
+    promptBuilder += `[User Request]:\nPlease analyze, transcribe equations/text, and explain this snipped image with step-by-step reasoning.`;
+  } else if (pageContext?.selectedText) {
+    promptBuilder += `[User Request]:\nPlease explain and reason through this document excerpt step-by-step.`;
+  } else {
+    promptBuilder += `Hello!`;
+  }
+
+  userParts.push({ text: promptBuilder });
 
   if (lastRole === 'user' && contents.length > 0) {
-    contents[contents.length - 1].parts.push({ text: effectiveUserText });
+    contents[contents.length - 1].parts.push(...userParts);
   } else {
     contents.push({
       role: 'user',
-      parts: [{ text: effectiveUserText }],
+      parts: userParts,
     });
   }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AssistantStage({ RiveComponent, currentMood, onReset }) {
+export default function AssistantStage({ RiveComponent, currentMood, onReset, error }) {
   const isLocked = currentMood !== 'Idle';
 
   return (
@@ -8,10 +8,18 @@ export default function AssistantStage({ RiveComponent, currentMood, onReset }) 
       {/* Avatar Viewport */}
       <div style={styles.canvasContainer}>
         <div style={styles.auraGlow} />
-        {RiveComponent ? (
+        {error ? (
+          <div style={styles.errorBox}>
+            <span style={{ fontSize: '18px' }}>⚠️</span>
+            <span>Avatar Error: {error}</span>
+          </div>
+        ) : RiveComponent ? (
           <RiveComponent style={styles.canvas} />
         ) : (
-          <div style={styles.loadingBox}>Loading Avatar...</div>
+          <div style={styles.loadingBox}>
+            <div style={styles.loadingSpinner} />
+            <span>Summoning Artrix...</span>
+          </div>
         )}
         {/* Blocks Rive hover events while a mood is locked in */}
         {isLocked && <div style={styles.hoverBlocker} />}
@@ -39,14 +47,17 @@ const styles = {
     background: 'var(--panel)',
     border: '1px solid var(--border)',
     borderRadius: 'var(--radius-lg)',
-    padding: '16px',
+    padding: '12px 14px 10px',
     width: '100%',
+    height: '100%',
+    minHeight: '160px',
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '8px',
     boxShadow: '0 12px 36px rgba(0, 0, 0, 0.4)',
     position: 'relative',
+    boxSizing: 'border-box',
   },
   dialogueBubble: {
     background: '#131e18',
@@ -87,6 +98,8 @@ const styles = {
   canvasContainer: {
     flex: 1,
     width: '100%',
+    height: '100%',
+    minHeight: '120px',
     borderRadius: 'var(--radius-md)',
     background: '#09100c',
     overflow: 'hidden',
@@ -117,17 +130,41 @@ const styles = {
     inset: 0,
     zIndex: 2,
     cursor: 'default',
-    // transparent — just blocks pointer events from reaching the Rive canvas
   },
   loadingBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '8px',
     color: 'var(--text-dim)',
-    fontSize: '13px',
+    fontSize: '12px',
+    zIndex: 2,
+  },
+  loadingSpinner: {
+    width: '20px',
+    height: '20px',
+    border: '2px solid rgba(140, 179, 116, 0.2)',
+    borderTop: '2px solid var(--accent)',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  },
+  errorBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '6px',
+    color: '#f87171',
+    fontSize: '11px',
+    textAlign: 'center',
+    padding: '8px',
+    zIndex: 2,
   },
   statusFooter: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: '6px',
+    paddingTop: '2px',
+    flexShrink: 0,
   },
   moodIndicator: {
     display: 'flex',

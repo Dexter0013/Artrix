@@ -44,7 +44,10 @@
 
 html, body {
   height: 100%;
-  overflow: hidden; /* Prevent body scroll — iOS fix for fixed backgrounds */
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 body {
@@ -53,6 +56,10 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   line-height: 1.5;
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Dark green overlay over the background GIF */
@@ -69,12 +76,18 @@ body::before {
   position: relative;
   z-index: 1;
   height: 100%;
+  width: 100%;
+  max-width: 100vw;
   overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
   -webkit-overflow-scrolling: touch; /* smooth momentum scroll on iOS */
 }
 
 code, pre, .font-mono {
   font-family: 'JetBrains Mono', monospace;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Scrollbar */
@@ -138,7 +151,7 @@ code, pre, .font-mono {
 }
 
 /* Mobile fix: iOS Safari ignores background-attachment:fixed — use scroll */
-@media (max-width: 800px) {
+@media (max-width: 960px) {
   .app-bg {
     background-attachment: scroll;
     background-size: cover;
@@ -157,41 +170,50 @@ code, pre, .font-mono {
   gap: 24px;
   width: 100%;
   max-width: 1100px;
+  box-sizing: border-box;
   flex-wrap: wrap;
   justify-content: center;
   align-items: stretch;
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .avatar-col {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 560px;
-  flex: 1 1 460px;
+  max-width: 540px;
+  flex: 1 1 440px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .chat-col {
   width: 100%;
   max-width: 540px;
   flex: 1 1 440px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
-/* ─── Small screens: stack vertically ──────────────────────────────────── */
-@media (max-width: 800px) {
+/* ─── Medium to Small screens: stack cleanly before any horizontal squeeze ─── */
+@media (max-width: 960px) {
   .app-layout {
     flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    padding: 0 8px;
+    align-items: center;
+    gap: 16px;
+    padding: 0 4px;
+    width: 100%;
+    max-width: 600px;
   }
 
   .avatar-col {
     max-width: 100%;
+    width: 100%;
     flex: none;
-    /* Fixed compact height for the canvas on mobile */
-    height: 280px;
-    min-height: 240px;
-    max-height: 320px;
+    height: 320px;
+    min-height: 260px;
+    max-height: 340px;
   }
 
   .avatar-col .stage-card-fill {
@@ -200,22 +222,49 @@ code, pre, .font-mono {
 
   .chat-col {
     max-width: 100%;
-    flex: 1;
+    width: 100%;
+    flex: none;
     display: flex;
     flex-direction: column;
   }
 
-  /* Chat panel fills the remaining height on mobile */
   .chat-col > * {
-    flex: 1;
-    height: 100% !important;
-    max-height: calc(100vh - 380px) !important;
-    min-height: 280px;
+    height: 520px !important;
+    max-height: 70vh !important;
+    min-height: 420px !important;
   }
 
-  /* Crop the GIF background to portrait center on mobile */
   .bg-gif-layer {
     background-position: center top;
     background-size: cover;
   }
 }
+
+@media (max-width: 500px) {
+  .avatar-col {
+    height: 260px;
+    min-height: 220px;
+  }
+
+  .chat-col > * {
+    height: 480px !important;
+    max-height: 75vh !important;
+    min-height: 360px !important;
+  }
+}
+
+/* ─── Extension Side Panel Scoped Overrides ───────────────────────────────── */
+body.sidepanel-mode {
+  overflow: hidden !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+}
+
+body.sidepanel-mode #root {
+  overflow: hidden !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+}
+
+

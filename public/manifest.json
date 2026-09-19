@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Artrix - AI Companion & Smart PDF Assistant",
+  "version": "1.0.0",
+  "description": "Your animated AI deer companion with emotional consistency, text selection reasoning, PDF analysis, OCR vision snip, and web search.",
+  "icons": {
+    "16": "Artrix1.png",
+    "32": "Artrix1.png",
+    "48": "Artrix1.png",
+    "128": "Artrix1.png"
+  },
+  "action": {
+    "default_title": "Open Artrix Side Panel",
+    "default_icon": {
+      "16": "Artrix1.png",
+      "32": "Artrix1.png",
+      "48": "Artrix1.png",
+      "128": "Artrix1.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "contextMenus",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "rive.wasm",
+        "rive_fallback.wasm",
+        "20673-38905-deer-girl.riv",
+        "backgroundnature.gif",
+        "Artrix1.png",
+        "TitleArtrix.png"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
