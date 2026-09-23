@@ -6,7 +6,8 @@
 
 An interactive AI Assistant web application and native browser extension featuring a real-time animated avatar powered by **[Rive](https://rive.app)**, conversational intelligence via **[Google Gemini](https://ai.google.dev/)** (Gemini 3.5 Flash), continuous voice recognition, natural neural voice synthesis, free client-side web search, **Tailwind CSS v4** + **Lucide Icons** UI, and **Firebase** authentication.
 
-🔗 **Live Demo:** [https://dexter0013.github.io/Artrix/](https://dexter0013.github.io/Artrix/)
+🔗 **Live Demo:** [https://dexter0013.github.io/Artrix/](https://dexter0013.github.io/Artrix/)<br>
+🔗 **Live Extension:** https://microsoftedge.microsoft.com/addons/detail/artrix-ai-companion-s/liiidoplhepbiifgbedjkfofpoplagjl
 
 ---
 
@@ -123,7 +124,9 @@ Artrix/
 
 ## 🧩 Running as a Browser Extension (Microsoft Edge & Chrome)
 
-Artrix runs as a native **Manifest V3 Side Panel Extension** directly inside Microsoft Edge or Google Chrome. Keep Artrix docked in your browser's side panel while reading articles or reviewing **PDF documents**.
+Artrix runs as a native **Manifest V3 Side Panel Extension** directly inside Microsoft Edge or Google Chrome. Keep Artrix docked in your browser's side panel while reading articles or reviewing **PDF documents**.<br>
+
+🔗 **Live Extension:** https://microsoftedge.microsoft.com/addons/detail/artrix-ai-companion-s/liiidoplhepbiifgbedjkfofpoplagjl
 
 ### ✨ Extension Highlights:
 * **Zero Authentication Friction**: The side panel operates without login barriers or external OAuth redirects. Open it and start analyzing right away.
